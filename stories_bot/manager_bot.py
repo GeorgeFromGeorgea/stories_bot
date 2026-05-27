@@ -820,13 +820,18 @@ async def handle_add_media(update: Update, context: CallbackContext):
     except Exception as e:
         logger.error(f"handle_add_media: ошибка сохранения в БД: {e}")
         await update.message.reply_text(f"❌ Ошибка сохранения: {e}")
+        # Clear user data and end conversation
+        user_data.pop(user_id, None)
         return ConversationHandler.END
 
     await update.message.reply_text(
-        f"✅ Медиа добавлено в пул! (ID: {media_id}, тип: {media_type})\n"
+        f"✅ Медиа добавлено в пул! (ID: {media_id}, тип: {media_type})\\n"
         f"Подпись: {caption or '(без подписи)'}"
-        f"\n\n📤 Отправь еще или /cancel чтобы завершить"
+        f"\\n\\n📤 Отправь еще или /cancel чтобы завершить"
     )
+    # Clear any leftover user data to avoid state interference
+    user_data.pop(user_id, None)
+    return ConversationHandler.END
 
 async def cmd_media_pool(update: Update, context: CallbackContext):
     """Команда /media_pool — показать все медиа в пуле с кнопками удаления."""
