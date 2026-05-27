@@ -22,7 +22,7 @@ BOT_TOKEN = "8793016165:AAEDp82DguuGCiT3HZ2cyZfSZGCCB_qe8Ro"
 MEDIA_DIR = "media"
 # --------------------
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Состояния для диалога добавления
@@ -703,31 +703,43 @@ async def handle_menu_buttons(update: Update, context: CallbackContext):
     """Обработка нажатий кнопок меню (reply keyboard)."""
     text = update.message.text
     user_id = update.effective_user.id
+    logger.info(f"handle_menu_buttons called for user {user_id}, text: {text}")
     
     # СБРОС ВСЕХ СОСТОЯНИЙ: если пользователь нажал кнопку меню, 
     # мы должны выйти из любого текущего диалога (add, edit, schedule)
     if user_id in user_data:
+        logger.info(f"Clearing user_data for user {user_id}")
         del user_data[user_id]
 
     if text == "🚀 Старт":
+        logger.info(f"User {user_id} selected '🚀 Старт'")
         return await start(update, context)
     elif text == "📋 Отложенные":
+        logger.info(f"User {user_id} selected '📋 Отложенные'")
         return await cmd_list(update, context)
     elif text == "📊 Статистика":
+        logger.info(f"User {user_id} selected '📊 Статистика'")
         return await cmd_stats(update, context)
     elif text == "📥 Добавить медиа":
+        logger.info(f"User {user_id} selected '📥 Добавить медиа'")
         return await cmd_add_media(update, context)
     elif text == "📦 Пул медиа":
+        logger.info(f"User {user_id} selected '📦 Пул медиа'")
         return await cmd_media_pool(update, context)
     elif text == "🗑 Сброс":
+        logger.info(f"User {user_id} selected '🗑 Сброс'")
         return await cancel(update, context)
     elif text == "🗓 Планировать публикацию":
+        logger.info(f"User {user_id} selected '🗓 Планировать публикацию'")
         return await cmd_schedule_daily(update, context)
     elif text == "🕐 Ежедневные":
+        logger.info(f"User {user_id} selected '🕐 Ежедневные'")
         return await cmd_daily_list(update, context)
     elif text == "🔄 Рестарт":
+        logger.info(f"User {user_id} selected '🔄 Рестарт'")
         return await restart_bot(update, context)
     
+    logger.info(f"User {user_id} selected unknown menu item: {text}")
     return None
 
 async def cmd_schedule_daily(update: Update, context: CallbackContext):
@@ -781,11 +793,15 @@ async def cmd_add_media(update: Update, context: CallbackContext):
 async def handle_add_media(update: Update, context: CallbackContext):
     """Принимаем медиа для добавления в пул - медиа и подпись вместе."""
     user_id = update.effective_user.id
+    logger.info(f"handle_add_media called for user {user_id}")
 
     if not (update.message.photo or update.message.video):
+        logger.info(f"User {user_id} sent non-media message")
         await update.message.reply_text("❌ Отправь фото или видео!")
         return ADD_MEDIA_WAIT
 
+    logger.info(f"User {user_id} sent media file")
+    
     # Скачиваем файл
     file_id = None
     media_type = "unknown"
@@ -827,6 +843,7 @@ async def handle_add_media(update: Update, context: CallbackContext):
         f"Подпись: {caption or '(без подписи)'}"
         f"\\n\\n📤 Отправь еще или /cancel чтобы завершить"
     )
+    logger.info(f"handle_add_media finished for user {user_id}, returning ADD_MEDIA_WAIT")
     return ADD_MEDIA_WAIT
 
 async def cmd_media_pool(update: Update, context: CallbackContext):
@@ -939,8 +956,16 @@ def main():
         def __init__(self):
             self.name = "DebugHandler"
         def check_update(self, update):
-            if update.message and update.message.text:
-                logger.debug(f"DEBUG: incoming text='{update.message.text}', user={update.effective_user.id}")
+            if update.message:
+                user_id = update.effective_user.id if update.effective_user else "unknown"
+                if update.message.text:
+                    logger.debug(f"DEBUG: incoming text='{update.message.text}', user={user_id}")
+                elif update.message.photo:
+                    logger.debug(f"DEBUG: incoming photo message, user={user_id}")
+                elif update.message.video:
+                    logger.debug(f"DEBUG: incoming video message, user={user_id}")
+                else:
+                    logger.debug(f"DEBUG: incoming non-text message, user={user_id}")
             return False
     
     application = Application.builder().token(BOT_TOKEN).build()
