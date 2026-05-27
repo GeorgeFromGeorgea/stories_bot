@@ -1,0 +1,30 @@
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stories-bot"
+version = "0.1.0"
+description = "Telegram Stories publisher bot"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "George", email = "george@example.com"}
+]
+keywords = ["telegram", "bot", "stories"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "telethon>=1.26.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/stories-bot"
+
+[project.scripts]
+stories-bot = "stories_bot.stories_bot:main_loop"
