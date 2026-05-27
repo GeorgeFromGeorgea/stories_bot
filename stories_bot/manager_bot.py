@@ -15,10 +15,10 @@ from telegram.ext import (
 )
 from telegram.constants import ParseMode  # kept for compatibility
 
-from . import stories_db
+import stories_db
 
 # --- Конфигурация ---
-BOT_TOKEN = "8793016165:AAEDp82DguuGCiT3HZ2cyZfSZGCCB_qe8Ro"
+BOT_TOKEN = "8793016165:***"
 MEDIA_DIR = "media"
 # --------------------
 
@@ -483,7 +483,7 @@ async def button_handler_edit(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
     data = query.data
-    logger.info(f"🔵 Получен callback: {data}")  # Отладка
+    logger.info(f"🔵 Получен callback: {data}")
     
     user_id = query.from_user.id
     
@@ -793,6 +793,7 @@ async def cmd_add_media(update: Update, context: CallbackContext):
 async def handle_add_media(update: Update, context: CallbackContext):
     """Принимаем медиа для добавления в пул - медиа и подпись вместе."""
     user_id = update.effective_user.id
+
     logger.info(f"handle_add_media called for user {user_id}")
 
     if not (update.message.photo or update.message.video):
@@ -800,8 +801,8 @@ async def handle_add_media(update: Update, context: CallbackContext):
         await update.message.reply_text("❌ Отправь фото или видео!")
         return ADD_MEDIA_WAIT
 
-    logger.info(f"User {user_id} sent media file")
-    
+    logger.info(f"User {user_id} sent a media file")
+
     # Скачиваем файл
     file_id = None
     media_type = "unknown"
@@ -832,16 +833,16 @@ async def handle_add_media(update: Update, context: CallbackContext):
             media_type=media_type,
             caption=caption
         )
-        logger.info(f"handle_add_media: media_id={media_id}")
+        logger.info(f"handle_add_media: media_id={media_id}, will stay in ADD_MEDIA_WAIT for more files")
     except Exception as e:
         logger.error(f"handle_add_media: ошибка сохранения в БД: {e}")
         await update.message.reply_text(f"❌ Ошибка сохранения: {e}")
         return ADD_MEDIA_WAIT
 
     await update.message.reply_text(
-        f"✅ Медиа добавлено в пул! (ID: {media_id}, тип: {media_type})\\n"
+        f"✅ Медиа добавлено в пул! (ID: {media_id}, тип: {media_type})\n"
         f"Подпись: {caption or '(без подписи)'}"
-        f"\\n\\n📤 Отправь еще или /cancel чтобы завершить"
+        f"\n\n📤 Отправь еще или /cancel чтобы завершить"
     )
     logger.info(f"handle_add_media finished for user {user_id}, returning ADD_MEDIA_WAIT")
     return ADD_MEDIA_WAIT
