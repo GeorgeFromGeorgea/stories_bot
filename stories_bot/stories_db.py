@@ -3,15 +3,16 @@ stories_db.py — работа с базой данных для Telegram Storie
 Версия 2.0: добавлена таблица медиафайлов (media),
 привязка медиа к запланированным постам, расширенные статусы.
 """
+import os
 import sqlite3
 import json
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from typing import List, Dict, Optional
 
-DB_NAME = "stories_bot.db"
-TIMEZONE = ZoneInfo("Europe/Moscow")  # Часовой пояс для даты использования
+DB_NAME = os.environ.get("DB_NAME", "stories_bot.db")
+TIMEZONE = ZoneInfo(os.environ.get("TIMEZONE", "Europe/Moscow"))  # Часовой пояс для даты использования
 
 def init_db():
     """Создаёт/обновляет таблицы."""
@@ -123,13 +124,13 @@ def update_post(post_id: int, post_type: str = None, post_time: str = None, capt
     """Редактировать пост."""
     fields = []
     values = []
-    if post_type:
+    if post_type is not None:
         fields.append("post_type=?")
         values.append(post_type)
-    if post_time:
+    if post_time is not None:
         fields.append("post_time=?")
         values.append(post_time)
-    if caption:
+    if caption is not None:
         fields.append("caption=?")
         values.append(caption)
     if not fields:
@@ -198,15 +199,29 @@ def get_stats() -> Dict:
         return {"total": total, "success": success, "failed": failed}
 
 def was_published_today(post_id: int) -> bool:
-    """Проверяет, публиковался ли пост сегодня (для daily)."""
+    """Проверяет, публиковался ли пост сегодня (для daily).
+
+    posted_at хранится в UTC (CURRENT_TIMESTAMP), поэтому сравнение даты
+    делаем после перевода в TIMEZONE — иначе около полуночи возможны
+    двойные публикации или пропуски.
+    """
+    today = datetime.now(TIMEZONE).date()
     with sqlite3.connect(DB_NAME) as conn:
-        cur = conn.cursor()
-        today = datetime.now(TIMEZONE).strftime("%Y-%m-%d")
-        count = cur.execute(
-            "SELECT COUNT(*) FROM posted_history WHERE post_id=? AND status='success' AND DATE(posted_at)=?",
-            (post_id, today)
-        ).fetchone()[0]
-        return count > 0
+        cur = conn.execute(
+            "SELECT posted_at FROM posted_history WHERE post_id=? AND status='success'",
+            (post_id,),
+        )
+        for (posted_at,) in cur.fetchall():
+            if posted_at is None:
+                continue
+            try:
+                dt = datetime.strptime(str(posted_at)[:19], "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                continue
+            local_date = dt.replace(tzinfo=timezone.utc).astimezone(TIMEZONE).date()
+            if local_date == today:
+                return True
+        return False
 
 # --- Использование медиа сегодня ---
 def add_used_media(media_id: int, caption_hash: str, used_date: str) -> bool:
@@ -266,7 +281,6 @@ def cleanup_old_used_media():
         conn.execute("DELETE FROM used_media_today WHERE used_date < ?", (cutoff,))
         conn.commit()
 
-# Инициализация
+# Инициализация при импорте модуля (идемпотентно).
 init_db()
 cleanup_old_used_media()
-print("✅ База данных Stories v2.1 (с учетом использования медиа сегодня) инициализирована")

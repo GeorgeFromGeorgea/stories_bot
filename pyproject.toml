@@ -21,10 +21,13 @@ classifiers = [
 ]
 dependencies = [
     "telethon>=1.26.0",
+    "python-telegram-bot>=20.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/stories-bot"
+Homepage = "https://github.com/GeorgeFromGeorgea/stories_bot"
 
 [project.scripts]
-stories-bot = "stories_bot.stories_bot:main_loop"
+stories-bot = "stories_bot.stories_bot:run"
+stories-manager = "stories_bot.manager_bot:main"
