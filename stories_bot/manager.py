@@ -18,7 +18,7 @@ from telegram.constants import ParseMode  # kept for compatibility
 import stories_db
 
 # --- Конфигурация ---
-BOT_TOKEN = "8793016165:***"
+BOT_TOKEN = "8793016165:AAEDp82DguuGCiT3HZ2cyZfSZGCCB_qe8Ro"
 MEDIA_DIR = "media"
 # --------------------
 
@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 logger = logging.getLogger(__name__)
 
 # Состояния для диалога добавления
-CAPTION, CHOOSE_PLAN, PICK_HOUR, PICK_MINUTE, PICK_CALENDAR = range(5)
+CAPTION, CHOOSE_PLAN, PICK_HOUR, PICK_MINUTE, PICK_CALENDAR, DEFAULT_SIGNATURE_TEXT = range(6)
 
 # Состояния для планировщика ежедневных публикаций
 SCHEDULE_DAILY_HOUR, SCHEDULE_DAILY_MINUTE = range(15, 17)
@@ -36,6 +36,8 @@ EDIT_FIELD, EDIT_VALUE, CONFIRM_DELETE, EDIT_MEDIA = range(3, 7)
 
 # Состояния для диалога добавления медиа в пул
 ADD_MEDIA_WAIT = 10
+
+# Состояния управления подписью репостера
 
 # Хранилище данных пользователя (временное)
 user_data = {}
@@ -123,6 +125,7 @@ async def start(update: Update, context: CallbackContext):
         ["📥 Добавить медиа", "📦 Пул медиа"],
         ["📊 Статистика", "🗑 Сброс"],
         ["🗓 Планировать публикацию"],
+        ["🔗 Подпись репостера"],
         ["🕐 Ежедневные", "🔄 Рестарт"]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -177,13 +180,22 @@ async def handle_media(update: Update, context: CallbackContext):
     )
     
     # Запоминаем состояние
-    user_data[user_id] = {'media_id': media_id, 'media_type': media_type}
-    
-    # Спрашиваем про текст
+    # Сохраняем подпись из сообщения (если есть)
+    caption = update.message.caption or ""
+    # Запоминаем состояние
+    user_data[user_id] = {'media_id': media_id, 'media_type': media_type, 'caption': caption}
+    # Предлагаем выбрать план
+    buttons = [
+        [InlineKeyboardButton("⏰ Опубликовать сейчас", callback_data="plan_now")],
+        [InlineKeyboardButton("🔄 Ежедневно", callback_data="plan_daily")],
+        [InlineKeyboardButton("📅 Один раз", callback_data="plan_once")],
+    ]
+    reply_markup = InlineKeyboardMarkup(buttons)
     await update.message.reply_text(
-        "✏️ Введите текст (подпись) для истории (или отправьте '-' если без текста):"
+        "✅ Медиа сохранено! Что делаем дальше?",
+        reply_markup=reply_markup
     )
-    return CAPTION
+    return CHOOSE_PLAN
 
 async def get_caption(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
@@ -199,6 +211,7 @@ async def get_caption(update: Update, context: CallbackContext):
         [InlineKeyboardButton("⏰ Опубликовать сейчас", callback_data="plan_now")],
         [InlineKeyboardButton("🔄 Ежедневно", callback_data="plan_daily")],
         [InlineKeyboardButton("📅 Один раз", callback_data="plan_once")],
+        [InlineKeyboardButton("📦 Просто добавить в пул", callback_data="plan_add_to_pool")],
     ]
     reply_markup = InlineKeyboardMarkup(buttons)
     await update.message.reply_text(
@@ -240,6 +253,10 @@ async def button_handler_add(update: Update, context: CallbackContext):
             reply_markup=build_calendar(now.year, now.month)
         )
         return PICK_CALENDAR
+    
+    elif data == "plan_add_to_pool":
+        await query.edit_message_text("✅ Медиа добавлено в пул! Используйте 📦 Пул медиа чтобы увидеть все файлы.")
+        return ConversationHandler.END
 
 
 async def button_handler_time(update: Update, context: CallbackContext):
@@ -948,6 +965,39 @@ async def button_handler_delete_media(update: Update, context: CallbackContext):
                 await query.edit_message_text("❌ Ошибка: неверный формат ID.")
 
 
+
+# ========== УПРАВЛЕНИЕ ПОДПИСЬЮ РЕПОСТЕРА ==========
+
+
+async def cmd_default_signature(update: Update, context: CallbackContext):
+    """Кнопка «📝 Подпись» — установка default подписи для постов."""
+    user_id = update.effective_user.id
+    if user_id in user_data:
+        del user_data[user_id]
+    await update.message.reply_text(
+        "Введите текст default подписи (может включать HTML-ссылку, например <a href=\"https://example.com\">​</a>).",
+        reply_markup=ReplyKeyboardMarkup([["❌ Отмена"]], resize_keyboard=True)
+    )
+    return DEFAULT_SIGNATURE_TEXT
+
+async def default_signature_text_input(update: Update, context: CallbackContext):
+    """Получаем текст default подписи и сохраняем его."""
+    text = update.message.text.strip()
+    if text == "❌ Отмена":
+        return await cancel(update, context)
+    user_id = update.effective_user.id
+    if user_id in user_data:
+        del user_data[user_id]
+    # Save to file
+    data = {"text": text}
+    with open(signature_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    await update.message.reply_text(
+        f"✅ Default подпись сохранена."
+    )
+    # Show main menu
+    await start(update, context)
+    return ConversationHandler.END
 def main():
     stories_db.init_db()
     logger.info("✅ Management Bot запущен...")
@@ -975,10 +1025,9 @@ def main():
     conv_handler_add = ConversationHandler(
         entry_points=[MessageHandler(filters.PHOTO | filters.VIDEO, handle_media)],
         states={
-            CAPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_caption)],
-            CHOOSE_PLAN: [CallbackQueryHandler(button_handler_add, pattern=r"^(plan_now|plan_daily|plan_once)$")],
-            PICK_HOUR: [CallbackQueryHandler(button_handler_time, pattern=r"^(once_hour_|once_back_hour)$")],
-            PICK_MINUTE: [CallbackQueryHandler(button_handler_time, pattern=r"^(once_min_|once_back_hour)$")],
+            CHOOSE_PLAN: [CallbackQueryHandler(button_handler_add, pattern=r"^(plan_now|plan_daily|plan_once|plan_add_to_pool)$")],
+            PICK_HOUR: [CallbackQueryHandler(button_handler_time, pattern=r"^(once_hour_|daily_hour_|once_back_hour)")],
+            PICK_MINUTE: [CallbackQueryHandler(button_handler_time, pattern=r"^(once_min_|daily_min_|once_back_hour|daily_back_hour)")],
             PICK_CALENDAR: [CallbackQueryHandler(button_handler_time, pattern=r"^cal_(prev_|next_|day_|cancel|ignore)$")],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
@@ -1014,8 +1063,20 @@ def main():
     menu_buttons = ["🚀 Старт", "📋 Отложенные", "📊 Статистика", "📥 Добавить медиа", "📦 Пул медиа", "🗑 Сброс", "🔄 Рестарт", "🕐 Ежедневные"]
     application.add_handler(MessageHandler(filters.Text(menu_buttons) & ~filters.COMMAND, handle_menu_buttons))
     
+
+    # Обработчик диалога установки default подписи
+    conv_handler_default_signature = ConversationHandler(
+        entry_points=[MessageHandler(filters.Text(["📝 Подпись"]) & ~filters.COMMAND, cmd_default_signature)],
+        states={
+            DEFAULT_SIGNATURE_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, default_signature_text_input)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        allow_reentry=True
+    )
+
     # Затем все остальные обработчики
     application.add_handler(conv_handler_schedule)
+    application.add_handler(conv_handler_default_signature)
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("list", cmd_list))
     application.add_handler(CommandHandler("daily_list", cmd_daily_list))
@@ -1040,6 +1101,8 @@ def main():
         fallbacks=[CommandHandler('cancel', cancel)],
     )
     
+
+
     application.add_handler(conv_handler_add)
     application.add_handler(conv_handler_edit)
     application.add_handler(conv_handler_add_media)

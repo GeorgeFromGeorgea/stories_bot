@@ -17,7 +17,7 @@ from telethon import TelegramClient
 from telethon.tl.functions.stories import SendStoryRequest
 from telethon.tl.types import InputMediaUploadedPhoto, InputMediaUploadedDocument, InputPeerSelf, InputPrivacyValueAllowAll
 
-from . import stories_db
+import stories_db
 
 # --- Конфигурация (заполни!) ---
 API_ID = 24971873
@@ -26,6 +26,20 @@ SESSION_NAME = "stories_session"
 CHECK_INTERVAL = 30  # Проверять базу каждые 30 секунд
 TIMEZONE = ZoneInfo("Europe/Moscow")  # Часовой пояс для планирования
 # -----------------------------
+
+# Default signature (loaded from file)
+DEFAULT_SIGNATURE_TEXT = ""
+
+def load_default_signature():
+    global DEFAULT_SIGNATURE_TEXT
+    try:
+        with open(signature_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            DEFAULT_SIGNATURE_TEXT = data.get("text", "")
+    except Exception as e:
+        logger.warning(f"Не удалось загрузить default подпись: {e}")
+        DEFAULT_SIGNATURE_TEXT = ""
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -53,6 +67,24 @@ async def publish_story(post: dict) -> bool:
     caption = post['caption'] or ""
     post_type = post['post_type']
     post_media_id = post.get('media_id', 0)
+
+    # Подпись (signature) — доп.текст с ссылкой, если указана
+    signature_text = ""
+    signature_id = post.get('signature_id', 0)
+    if signature_id and signature_id > 0:
+        sig = stories_db.get_signature(signature_id)
+        if sig:
+            signature_text = sig.get('text') or ""
+    # Если нет конкретной подписи, используем default подпись
+    if not signature_text:
+        signature_text = DEFAULT_SIGNATURE_TEXT
+
+    # Объединяем контентный caption и подпись
+    if signature_text:
+        if caption:
+            caption = f"{caption}\n\n{signature_text}"
+        else:
+            caption = signature_text
 
     caption_hash = stories_db.get_caption_hash(caption)
     used_date = get_today_date_str()
@@ -135,6 +167,7 @@ async def main_loop():
 
     # Инициализация БД
     stories_db.init_db()
+    load_default_signature()
 
     # Старт клиента
     client = TelegramClient(SESSION_NAME, API_ID, API_HASH)

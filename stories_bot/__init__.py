@@ -1,3 +1,2 @@
-# Stories Bot package
-from .stories_bot import main_loop
-from .stories_db import init_db
+"""Stories Bot - Telegram Stories publisher with scheduling."""
+__version__ = "1.0.0"

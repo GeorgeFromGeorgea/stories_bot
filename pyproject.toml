@@ -1,30 +1,35 @@
-
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "stories-bot"
-version = "0.1.0"
-description = "Telegram Stories publisher bot"
+version = "1.0.0"
+description = "Telegram Stories publisher bot with scheduling"
 readme = "README.md"
-requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "George", email = "george@example.com"}
+    {name = "George", email = "your@email.com"}
 ]
-keywords = ["telegram", "bot", "stories"]
+keywords = ["telegram", "bot", "stories", "scheduling"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+requires-python = ">=3.9"
 dependencies = [
+    "python-telegram-bot>=20.0",
     "telethon>=1.26.0",
+    "apscheduler>=3.10.0",
 ]
 
-[project.urls]
-Homepage = "https://github.com/yourusername/stories-bot"
-
 [project.scripts]
-stories-bot = "stories_bot.stories_bot:main_loop"
+stories-bot = "stories_bot.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/GeorgeFromGeorgea/stories_bot"
+Repository = "https://github.com/GeorgeFromGeorgea/stories_bot"
+
+[tool.setuptools.packages.find]
+include = ["stories_bot*"]

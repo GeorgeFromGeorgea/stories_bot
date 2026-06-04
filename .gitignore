@@ -1,10 +1,8 @@
-
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Distribution / packaging
+*.so
 .Python
 build/
 develop-eggs/
@@ -18,67 +16,33 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# Environments
-.env
-.venv
-env/
+# Virtual environments
 venv/
 ENV/
-env.bak/
-venv.bak/
+env/
 
-# Spyder project settings
-.spyderproject
-.spyderpyque
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Rope project settings
-.ropeproject
+# Environment
+.env
+*.session
+*.session-journal
 
-# mkdocs documentation
-/site
+# Database
+*.db
+*.db-journal
 
-# MyPy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# Pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug
-
-# Stories Bot specific
-stories_bot.db
-stories_session.session
+# Media files
 media/
+
+# OS
+.DS_Store
+Thumbs.db
