@@ -6,6 +6,7 @@ Stories Publisher (Публикатор).
 Теперь медиа выбирается случайно из всех загруженных, но с условием,
 что одна и та же комбинация (медиа + подпись) не публикуется более одного раза в день.
 """
+import os
 import logging
 import asyncio
 import time
@@ -15,17 +16,54 @@ from pathlib import Path
 
 from telethon import TelegramClient
 from telethon.tl.functions.stories import SendStoryRequest
-from telethon.tl.types import InputMediaUploadedPhoto, InputMediaUploadedDocument, InputPeerSelf, InputPrivacyValueAllowAll
+from telethon.tl.types import (
+    InputMediaUploadedPhoto,
+    InputMediaUploadedDocument,
+    InputPeerSelf,
+    InputPrivacyValueAllowAll,
+    DocumentAttributeVideo,
+)
 
 from . import stories_db
 
-# --- Конфигурация (заполни!) ---
-API_ID = 24971873
-API_HASH = "22807b277633e16075b127432368278e"
-SESSION_NAME = "stories_session"
-CHECK_INTERVAL = 30  # Проверять базу каждые 30 секунд
-TIMEZONE = ZoneInfo("Europe/Moscow")  # Часовой пояс для планирования
-# -----------------------------
+# --- Конфигурация (через переменные окружения / .env) ---
+# Получи API_ID и API_HASH на https://my.telegram.org
+# Часовой пояс не секретный, поэтому читается на уровне модуля.
+TIMEZONE = ZoneInfo(os.environ.get("TIMEZONE", "Europe/Moscow"))  # Часовой пояс
+SESSION_NAME = os.environ.get("SESSION_NAME", "stories_session")
+CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL", "30"))  # сек между проверками
+# --------------------------------------------------------
+
+
+def load_credentials() -> tuple[int, str]:
+    """Прочитать API_ID/API_HASH из окружения (с поддержкой .env).
+
+    Вынесено из уровня модуля, чтобы простой `import stories_bot`
+    не падал при отсутствии переменных окружения.
+    """
+    try:
+        from dotenv import load_dotenv  # type: ignore
+        load_dotenv()
+    except ImportError:
+        pass  # python-dotenv опционален; переменные можно задать и через окружение
+
+    api_id_raw = os.environ.get("API_ID")
+    api_hash = os.environ.get("API_HASH")
+    if not api_id_raw:
+        raise RuntimeError(
+            "Не задана переменная окружения API_ID. "
+            "Укажите её в .env или окружении (см. README)."
+        )
+    if not api_hash:
+        raise RuntimeError(
+            "Не задана переменная окружения API_HASH. "
+            "Укажите её в .env или окружении (см. README)."
+        )
+    try:
+        api_id = int(api_id_raw)
+    except ValueError as exc:
+        raise RuntimeError(f"API_ID должно быть числом, получено: {api_id_raw!r}") from exc
+    return api_id, api_hash
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -109,7 +147,11 @@ async def publish_story(post: dict) -> bool:
             media = await client.upload_file(file_path)
             await client(SendStoryRequest(
                 peer=peer,
-                media=InputMediaUploadedDocument(file=media, mime_type='video/mp4', attributes=[]),
+                media=InputMediaUploadedDocument(
+                    file=media,
+                    mime_type='video/mp4',
+                    attributes=[DocumentAttributeVideo(duration=0, w=0, h=0)],
+                ),
                 caption=caption,
                 privacy_rules=privacy
             ))
@@ -137,7 +179,8 @@ async def main_loop():
     stories_db.init_db()
 
     # Старт клиента
-    client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+    api_id, api_hash = load_credentials()
+    client = TelegramClient(SESSION_NAME, api_id, api_hash)
     await client.start()
     me = await client.get_me()
     logger.info(f"✅ Publisher запущен от имени: {me.first_name}")
@@ -189,7 +232,8 @@ async def main_loop():
         # Ждем перед следующей проверкой
         await asyncio.sleep(CHECK_INTERVAL)
 
-if __name__ == "__main__":
+def run():
+    """Синхронная точка входа (console_scripts не умеет запускать корутину)."""
     try:
         asyncio.run(main_loop())
     except KeyboardInterrupt:
@@ -197,3 +241,7 @@ if __name__ == "__main__":
     finally:
         if client and client.is_connected():
             client.disconnect()
+
+
+if __name__ == "__main__":
+    run()

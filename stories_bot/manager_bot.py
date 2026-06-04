@@ -15,27 +15,43 @@ from telegram.ext import (
 )
 from telegram.constants import ParseMode  # kept for compatibility
 
-import stories_db
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv опционален
 
-# --- Конфигурация ---
-BOT_TOKEN = "8793016165:***"
-MEDIA_DIR = "media"
-# --------------------
+# Поддержка запуска и как пакета (python -m stories_bot.manager_bot),
+# и как отдельного скрипта (python manager_bot.py).
+try:
+    from . import stories_db
+except ImportError:
+    import stories_db
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# --- Конфигурация (через переменные окружения / .env) ---
+# Токен получи у @BotFather.
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+MEDIA_DIR = os.environ.get("MEDIA_DIR", "media")
+# --------------------------------------------------------
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Состояния для диалога добавления
-CAPTION, CHOOSE_PLAN, PICK_HOUR, PICK_MINUTE, PICK_CALENDAR = range(5)
-
-# Состояния для планировщика ежедневных публикаций
-SCHEDULE_DAILY_HOUR, SCHEDULE_DAILY_MINUTE = range(15, 17)
-
-# Состояния для диалога редактирования
-EDIT_FIELD, EDIT_VALUE, CONFIRM_DELETE, EDIT_MEDIA = range(3, 7)
-
-# Состояния для диалога добавления медиа в пул
-ADD_MEDIA_WAIT = 10
+# Состояния для диалога добавления (range гарантирует уникальность всех стейтов)
+(
+    CAPTION,
+    CHOOSE_PLAN,
+    PICK_HOUR,
+    PICK_MINUTE,
+    PICK_CALENDAR,
+    SCHEDULE_DAILY_HOUR,
+    SCHEDULE_DAILY_MINUTE,
+    EDIT_FIELD,
+    EDIT_VALUE,
+    CONFIRM_DELETE,
+    EDIT_MEDIA,
+    ADD_MEDIA_WAIT,
+) = range(12)
 
 # Хранилище данных пользователя (временное)
 user_data = {}
@@ -374,15 +390,36 @@ async def cmd_list(update: Update, context: CallbackContext):
     await update.message.reply_text(f"📸 Найдено {len(posts)} активных постов:")
     
     for p in posts:
+        caption = p['caption'] or 'нет'
+        buttons = [
+            [InlineKeyboardButton("📝 Редактировать", callback_data=f"edit_{p['id']}"),
+             InlineKeyboardButton("🗑 Удалить", callback_data=f"delete_{p['id']}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(buttons)
+
+        # media_id == -1: медиа выбирается случайно из пула в момент публикации
+        if p['media_id'] == -1:
+            await update.message.reply_text(
+                f"🔹 *Пост #{p['id']}*\n"
+                f"Тип: {p['post_type']}\n"
+                f"Время: {p['post_time']}\n"
+                f"Медиа: случайно из пула\n"
+                f"Подпись: {caption[:100]}",
+                reply_markup=reply_markup,
+            )
+            continue
+
         media_info = stories_db.get_media(p['media_id'])
         if not media_info:
-            await update.message.reply_text(f"🔹 *Пост #{p['id']}* - медиа не найдено")
+            await update.message.reply_text(
+                f"🔹 *Пост #{p['id']}* - медиа не найдено",
+                reply_markup=reply_markup,
+            )
             continue
             
         media_type = media_info['media_type']
         file_path = media_info['file_path']
-        caption = p['caption'] or 'нет'
-        
+
         # Формируем описание поста
         post_caption = (
             f"🔹 *Пост #{p['id']}*\n"
@@ -390,13 +427,7 @@ async def cmd_list(update: Update, context: CallbackContext):
             f"Время: {p['post_time']}\n"
             f"Подпись: {caption[:100]}"
         )
-        
-        buttons = [
-            [InlineKeyboardButton("📝 Редактировать", callback_data=f"edit_{p['id']}"),
-             InlineKeyboardButton("🗑 Удалить", callback_data=f"delete_{p['id']}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(buttons)
-        
+
         # Отправляем медиа
         try:
             if media_type == "photo":
@@ -949,6 +980,11 @@ async def button_handler_delete_media(update: Update, context: CallbackContext):
 
 
 def main():
+    if not BOT_TOKEN:
+        raise RuntimeError(
+            "Не задана переменная окружения BOT_TOKEN. "
+            "Получи токен у @BotFather и укажи его в .env или окружении."
+        )
     stories_db.init_db()
     logger.info("✅ Management Bot запущен...")
     
@@ -977,9 +1013,9 @@ def main():
         states={
             CAPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_caption)],
             CHOOSE_PLAN: [CallbackQueryHandler(button_handler_add, pattern=r"^(plan_now|plan_daily|plan_once)$")],
-            PICK_HOUR: [CallbackQueryHandler(button_handler_time, pattern=r"^(once_hour_|once_back_hour)$")],
-            PICK_MINUTE: [CallbackQueryHandler(button_handler_time, pattern=r"^(once_min_|once_back_hour)$")],
-            PICK_CALENDAR: [CallbackQueryHandler(button_handler_time, pattern=r"^cal_(prev_|next_|day_|cancel|ignore)$")],
+            PICK_HOUR: [CallbackQueryHandler(button_handler_time, pattern=r"^(daily_hour_|once_hour_|daily_back_hour|once_back_hour)")],
+            PICK_MINUTE: [CallbackQueryHandler(button_handler_time, pattern=r"^(daily_min_|once_min_|daily_back_hour|once_back_hour)")],
+            PICK_CALENDAR: [CallbackQueryHandler(button_handler_time, pattern=r"^cal_(prev_|next_|day_|cancel|ignore)")],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
