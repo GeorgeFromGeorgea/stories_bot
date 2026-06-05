@@ -12,19 +12,51 @@ Telegram Stories publisher bot with scheduling support.
 
 ## Installation
 
-### From GitHub (recommended)
+### Linux / macOS
 
 ```bash
-pip install git+https://github.com/yourusername/stories-bot.git
+pip install git+https://github.com/GeorgeFromGeorgea/stories_bot.git
 ```
 
-### From source
+### Windows
 
-```bash
-git clone https://github.com/yourusername/stories-bot.git
-cd stories-bot
-pip install .
+**1. Установи Python** (если ещё не установлен):
+
+```powershell
+winget install Python.Python.3.12
 ```
+
+> После установки **закрой и открой PowerShell заново**.
+
+**2. Проверь, что Python работает:**
+
+```powershell
+python --version
+```
+
+Должно показать `Python 3.12.x`.
+
+**3. Установи Git** (если ещё не установлен):
+
+```powershell
+winget install Git.Git
+```
+
+> После установки **закрой и открой PowerShell заново**.
+
+**4. Проверь, что git работает:**
+
+```powershell
+git --version
+```
+
+**5. Установи бота:**
+
+```powershell
+python -m pip install -U git+https://github.com/GeorgeFromGeorgea/stories_bot.git
+```
+
+> Если `python --version` показывает просто "Python" (без версии) — значит это заглушка Microsoft Store, а не настоящий Python. Удали её и установи Python через `winget` или с [python.org](https://www.python.org/downloads/), обязательно отметив галочку **"Add Python to PATH"**.
 
 ## Setup
 
