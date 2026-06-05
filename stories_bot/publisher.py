@@ -50,6 +50,22 @@ def get_today_date_str() -> str:
     """Возвращает сегодняшнюю дату в формате YYYY-MM-DD согласно TIMEZONE."""
     return datetime.now(TIMEZONE).strftime("%Y-%m-%d")
 
+async def ensure_client_connected() -> bool:
+    """Проверяет подключение клиента и переподключает при необходимости."""
+    global client
+    if client and client.is_connected():
+        return True
+    logger.warning("⚠️ Клиент отключён, пытаюсь переподключиться...")
+    try:
+        await client.start()
+        if client.is_connected():
+            me = await client.get_me()
+            logger.info(f"✅ Переподключение успешно! Аккаунт: {me.first_name}")
+            return True
+    except Exception as e:
+        logger.error(f"❌ Ошибка переподключения: {e}")
+    return False
+
 async def publish_story(post: dict) -> bool:
     """Публикует одну историю, выбирая случайное подходящее медиа из пула.
     Правила:
@@ -59,8 +75,7 @@ async def publish_story(post: dict) -> bool:
     - Если медиа закончились → пропуск (return False), пост остаётся активным
     """
     global client
-    if not client or not client.is_connected():
-        logger.error("❌ Клиент не подключен!")
+    if not await ensure_client_connected():
         return False
 
     post_id = post['id']
