@@ -98,6 +98,21 @@ SESSION_NAME="stories_session"
 - 🔄 Рестарт - Restart bot
 - 🕐 Ежедневные - Schedule daily post
 
+## Updating
+
+To update to the latest version from GitHub:
+
+```bash
+# Update the package
+pip install -U git+https://github.com/GeorgeFromGeorgea/stories_bot.git
+
+# Restart the bot services (if using systemd)
+systemctl restart stories-publisher.service
+systemctl restart stories-manager.service
+```
+
+> **Note:** The `-U` (--upgrade) flag updates the package in-place. No need to uninstall first.
+
 ## How it works
 
 1. **Upload media** - Send photos/videos to the bot
