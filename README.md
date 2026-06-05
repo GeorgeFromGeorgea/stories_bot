@@ -100,15 +100,26 @@ SESSION_NAME="stories_session"
 
 ## Updating
 
-To update to the latest version from GitHub:
+### Linux / macOS
 
 ```bash
-# Update the package
 pip install -U git+https://github.com/GeorgeFromGeorgea/stories_bot.git
 
 # Restart the bot services (if using systemd)
 systemctl restart stories-publisher.service
 systemctl restart stories-manager.service
+```
+
+### Windows
+
+```powershell
+py -m pip install -U git+https://github.com/GeorgeFromGeorgea/stories_bot.git
+```
+
+Or if you use `python` command:
+
+```powershell
+python -m pip install -U git+https://github.com/GeorgeFromGeorgea/stories_bot.git
 ```
 
 > **Note:** The `-U` (--upgrade) flag updates the package in-place. No need to uninstall first.
