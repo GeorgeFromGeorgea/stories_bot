@@ -227,6 +227,8 @@ async def main_loop():
             posts = stories_db.get_active_posts()
             logger.info(f"🔍 Проверка в {current_time}: найдено {len(posts)} активных постов")
 
+            # Собираем daily посты, которые должны опубликоваться
+            daily_candidates = []
             for post in posts:
                 post_id = post['id']
                 post_type = post['post_type']
@@ -238,12 +240,13 @@ async def main_loop():
                     should_publish = True
                 elif post_type == 'daily':
                     # Публикуем если текущее время >= запланированного И ещё не публиковали сегодня
+                    # НО только для самого последнего подходящего слота (не все сразу)
                     try:
                         target_h, target_m = map(int, post_time.split(':'))
                         now_minutes = now.hour * 60 + now.minute
                         target_minutes = target_h * 60 + target_m
                         if now_minutes >= target_minutes and not stories_db.was_published_today(post_id):
-                            should_publish = True
+                            daily_candidates.append((post_id, target_minutes, post))
                     except Exception:
                         pass
                 elif post_type == 'once':
@@ -257,6 +260,15 @@ async def main_loop():
                 if should_publish:
                     await publish_story(post)
                     await asyncio.sleep(2)  # Пауза между публикациями
+
+            # Для daily: публикуем только ОДИН - самый последний по времени
+            if daily_candidates:
+                # Сортируем по target_minutes (по убыванию) и берем первый
+                daily_candidates.sort(key=lambda x: x[1], reverse=True)
+                latest_post = daily_candidates[0][2]
+                logger.info(f"📅 Daily: публикуем только последний слот #{latest_post['id']} (время {latest_post['post_time']}), пропускаем {len(daily_candidates)-1} ранних")
+                await publish_story(latest_post)
+                await asyncio.sleep(2)
 
         except Exception as e:
             logger.error(f"❌ Ошибка в цикле: {e}")
