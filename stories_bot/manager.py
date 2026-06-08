@@ -739,8 +739,7 @@ async def handle_menu_buttons(update: Update, context: CallbackContext):
     
     # СБРОС ВСЕХ СОСТОЯНИЙ: если пользователь нажал кнопку меню, 
     # мы должны выйти из любого текущего диалога (add, edit, schedule)
-    # НО НЕ для "📥 Добавить медиа" - это сам вход в диалог!
-    if user_id in user_data and text != "📥 Добавить медиа":
+    if user_id in user_data:
         logger.info(f"Clearing user_data for user {user_id}")
         del user_data[user_id]
 
@@ -753,9 +752,6 @@ async def handle_menu_buttons(update: Update, context: CallbackContext):
     elif text == "📊 Статистика":
         logger.info(f"User {user_id} selected '📊 Статистика'")
         return await cmd_stats(update, context)
-    elif text == "📥 Добавить медиа":
-        logger.info(f"User {user_id} selected '📥 Добавить медиа'")
-        return await cmd_add_media(update, context)
     elif text == "📦 Пул медиа":
         logger.info(f"User {user_id} selected '📦 Пул медиа'")
         return await cmd_media_pool(update, context)
@@ -1095,7 +1091,7 @@ def main():
     
     # === ПЕРВЫМ ДОЛЖЕН БЫТЬ ОБРАБОТЧИК КНОПОК МЕНЮ ===
     # Исключаем кнопки, которые обрабатываются ConversationHandler
-    menu_buttons = ["🚀 Старт", "📋 Отложенные", "📊 Статистика", "📥 Добавить медиа", "📦 Пул медиа", "🗑 Сброс", "🔄 Рестарт", "🕐 Ежедневные"]
+    menu_buttons = ["🚀 Старт", "📋 Отложенные", "📊 Статистика", "📦 Пул медиа", "🗑 Сброс", "🔄 Рестарт", "🕐 Ежедневные"]
     application.add_handler(MessageHandler(filters.Text(menu_buttons) & ~filters.COMMAND, handle_menu_buttons))
     
 
@@ -1125,7 +1121,10 @@ def main():
     
     # Диалоги
     conv_handler_add_media = ConversationHandler(
-        entry_points=[CommandHandler("add_media", cmd_add_media)],
+        entry_points=[
+            CommandHandler("add_media", cmd_add_media),
+            MessageHandler(filters.Text(["📥 Добавить медиа"]) & ~filters.COMMAND, cmd_add_media),
+        ],
         states={
             ADD_MEDIA_WAIT: [
                 MessageHandler(filters.PHOTO | filters.VIDEO, handle_add_media),
