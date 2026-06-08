@@ -42,13 +42,16 @@ CHECK_INTERVAL = 30
 TIMEZONE = ZoneInfo("Europe/Moscow")
 # -----------------------------
 
+# Default signature file
+SIGNATURE_FILE = Path.cwd() / "default_signature.json"
+
 # Default signature (loaded from file)
 DEFAULT_SIGNATURE_TEXT = ""
 
 def load_default_signature():
     global DEFAULT_SIGNATURE_TEXT
     try:
-        with open(signature_file, "r", encoding="utf-8") as f:
+        with open(SIGNATURE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
             DEFAULT_SIGNATURE_TEXT = data.get("text", "")
     except Exception as e:

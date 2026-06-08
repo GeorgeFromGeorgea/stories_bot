@@ -56,6 +56,9 @@ user_data = {}
 
 Path(MEDIA_DIR).mkdir(exist_ok=True)
 
+# Default signature file
+SIGNATURE_FILE = Path.cwd() / "default_signature.json"
+
 # ========== ПОСТРОИТЕЛИ КЛАВИАТУР ВРЕМЕНИ ==========
 
 def build_hour_picker(prefix: str) -> InlineKeyboardMarkup:
@@ -1002,7 +1005,7 @@ async def default_signature_text_input(update: Update, context: CallbackContext)
         del user_data[user_id]
     # Save to file
     data = {"text": text}
-    with open(signature_file, "w", encoding="utf-8") as f:
+    with open(SIGNATURE_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     await update.message.reply_text(
         f"✅ Default подпись сохранена."
