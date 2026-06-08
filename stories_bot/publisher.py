@@ -20,8 +20,8 @@ from telethon.tl.types import InputMediaUploadedPhoto, InputMediaUploadedDocumen
 import stories_db
 
 # --- Конфигурация (заполни!) ---
-API_ID = 24971873
-API_HASH = "22807b277633e16075b127432368278e"
+API_ID = 0  # Замените на ваш API_ID из my.telegram.org
+API_HASH = ""  # Замените на ваш API_HASH из my.telegram.org
 SESSION_NAME = "stories_session"
 CHECK_INTERVAL = 30  # Проверять базу каждые 30 секунд
 TIMEZONE = ZoneInfo("Europe/Moscow")  # Часовой пояс для планирования

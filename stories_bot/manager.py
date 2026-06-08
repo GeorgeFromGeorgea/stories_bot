@@ -18,7 +18,7 @@ from telegram.constants import ParseMode  # kept for compatibility
 import stories_db
 
 # --- Конфигурация ---
-BOT_TOKEN = "8793016165:AAEDp82DguuGCiT3HZ2cyZfSZGCCB_qe8Ro"
+BOT_TOKEN = ""  # Замените на ваш токен от @BotFather
 MEDIA_DIR = "media"
 # --------------------
 
