@@ -826,7 +826,7 @@ async def handle_add_media(update: Update, context: CallbackContext):
     """Принимаем медиа для добавления в пул - медиа и подпись вместе."""
     user_id = update.effective_user.id
 
-    logger.info(f"handle_add_media called for user {user_id}")
+    logger.info(f"handle_add_media called for user {user_id}, state={context.user_data.get('conversation_state') if context.user_data else 'none'}")
 
     if not (update.message.photo or update.message.video):
         logger.info(f"User {user_id} sent non-media message")
@@ -1131,6 +1131,7 @@ def main():
             ],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
+        conversation_timeout=3600,  # 1 час таймаут
     )
     
 
