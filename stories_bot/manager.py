@@ -815,6 +815,8 @@ async def schedule_daily_get_minute(update: Update, context: CallbackContext):
 
 async def cmd_add_media(update: Update, context: CallbackContext):
     """Команда /add_media — загрузить медиа в пул без создания поста."""
+    user_id = update.effective_user.id
+    logger.info(f"cmd_add_media called for user {user_id}, setting state=ADD_MEDIA_WAIT")
     await update.message.reply_text(
         "📥 Отправь мне фото или видео с подписью (если нужно), которое хочешь добавить в пул.\n"
         "Я сохраню его и буду использовать для рандомной публикации в сторис.\n\n"
@@ -829,7 +831,7 @@ async def handle_add_media(update: Update, context: CallbackContext):
     logger.info(f"handle_add_media called for user {user_id}, state={context.user_data.get('conversation_state') if context.user_data else 'none'}")
 
     if not (update.message.photo or update.message.video):
-        logger.info(f"User {user_id} sent non-media message")
+        logger.info(f"User {user_id} sent non-media message: {update.message.text[:50] if update.message.text else 'no text'}")
         await update.message.reply_text("❌ Отправь фото или видео!")
         return ADD_MEDIA_WAIT
 
@@ -1132,6 +1134,7 @@ def main():
         },
         fallbacks=[CommandHandler('cancel', cancel)],
         conversation_timeout=3600,  # 1 час таймаут
+        allow_reentry=True,
     )
     
 
