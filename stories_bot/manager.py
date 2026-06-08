@@ -15,10 +15,22 @@ from telegram.ext import (
 )
 from telegram.constants import ParseMode  # kept for compatibility
 
-import stories_db
+from . import stories_db
 
-# --- Конфигурация ---
-BOT_TOKEN = ""  # Замените на ваш токен от @BotFather
+def load_env():
+    """Load .env file from working directory."""
+    env_path = Path.cwd() / ".env"
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, _, value = line.partition("=")
+                    os.environ[key.strip()] = value.strip().strip('"').strip("'")
+
+# --- Конфигурация (читаем из окружения/.env) ---
+# Эти значения будут перезаписаны в main() после load_env()
+BOT_TOKEN = ""
 MEDIA_DIR = "media"
 # --------------------
 
@@ -999,6 +1011,13 @@ async def default_signature_text_input(update: Update, context: CallbackContext)
     await start(update, context)
     return ConversationHandler.END
 def main():
+    # Загружаем .env
+    load_env()
+    
+    # Читаем конфигурацию из окружения
+    import os
+    bot_token = os.environ.get("BOT_TOKEN", "")
+    
     stories_db.init_db()
     logger.info("✅ Management Bot запущен...")
     
@@ -1019,7 +1038,7 @@ def main():
                     logger.debug(f"DEBUG: incoming non-text message, user={user_id}")
             return False
     
-    application = Application.builder().token(BOT_TOKEN).build()
+    application = Application.builder().token(bot_token).build()
     
     # Обработчик диалога добавления
     conv_handler_add = ConversationHandler(

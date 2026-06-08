@@ -17,14 +17,29 @@ from telethon import TelegramClient
 from telethon.tl.functions.stories import SendStoryRequest
 from telethon.tl.types import InputMediaUploadedPhoto, InputMediaUploadedDocument, InputPeerSelf, InputPrivacyValueAllowAll
 
-import stories_db
+from . import stories_db
 
-# --- Конфигурация (заполни!) ---
-API_ID = 0  # Замените на ваш API_ID из my.telegram.org
-API_HASH = ""  # Замените на ваш API_HASH из my.telegram.org
+import os
+from pathlib import Path
+
+def load_env():
+    """Load .env file from working directory."""
+    env_path = Path.cwd() / ".env"
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, _, value = line.partition("=")
+                    os.environ[key.strip()] = value.strip().strip('"').strip("'")
+
+# --- Конфигурация (читаем из окружения/.env) ---
+# Эти значения будут перезаписаны в main_loop() после load_env()
+API_ID = 0
+API_HASH = ""
 SESSION_NAME = "stories_session"
-CHECK_INTERVAL = 30  # Проверять базу каждые 30 секунд
-TIMEZONE = ZoneInfo("Europe/Moscow")  # Часовой пояс для планирования
+CHECK_INTERVAL = 30
+TIMEZONE = ZoneInfo("Europe/Moscow")
 # -----------------------------
 
 # Default signature (loaded from file)
@@ -179,13 +194,22 @@ async def publish_story(post: dict) -> bool:
 async def main_loop():
     """Главный цикл проверки и публикации."""
     global client
-
+    
+    # Загружаем .env
+    load_env()
+    
+    # Читаем конфигурацию из окружения
+    import os
+    api_id = int(os.environ.get("API_ID", "0"))
+    api_hash = os.environ.get("API_HASH", "")
+    session_name = os.environ.get("SESSION_NAME", "stories_session")
+    
     # Инициализация БД
     stories_db.init_db()
     load_default_signature()
 
     # Старт клиента
-    client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+    client = TelegramClient(session_name, api_id, api_hash)
     await client.start()
     me = await client.get_me()
     logger.info(f"✅ Publisher запущен от имени: {me.first_name}")

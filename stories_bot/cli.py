@@ -124,9 +124,9 @@ def cmd_run():
     # Run both manager and publisher
     async def main():
         # Start publisher in background
-        pub_task = asyncio.create_task(run_publisher())
+        pub_task = asyncio.create_task(publisher.main_loop())
         # Run manager (blocking)
-        await run_manager()
+        await manager.main()
     
     asyncio.run(main())
 
