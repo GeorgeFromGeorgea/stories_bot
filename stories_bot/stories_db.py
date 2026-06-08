@@ -58,8 +58,25 @@ def init_db():
 
 # --- Медиафайлы ---
 def add_media(file_path: str, file_name: str, media_type: str, caption: str = None) -> int:
-    """Сохранить новый медиафайл. Возвращает ID."""
+    """Сохранить новый медиафайл. Возвращает ID.
+    Если файл с таким же file_unique_id уже есть — возвращает существующий ID."""
+    # Извлекаем file_unique_id из имени файла (формат: YYYYMMDD_HHMMSS_fileuniqueid.ext)
+    import re
+    match = re.search(r'_([A-Za-z0-9_-]+)\.(jpg|mp4)$', file_name)
+    file_unique_id = match.group(1) if match else None
+
     with sqlite3.connect(DB_NAME) as conn:
+        # Проверяем, есть ли уже медиа с таким file_unique_id
+        if file_unique_id:
+            cur = conn.execute(
+                "SELECT id FROM media WHERE file_name LIKE ?",
+                (f"%_{file_unique_id}.%",)
+            )
+            existing = cur.fetchone()
+            if existing:
+                return existing[0]
+
+        # Добавляем новое
         cur = conn.execute("""INSERT INTO media (file_path, file_name, media_type, caption)
             VALUES (?, ?, ?, ?)""", (file_path, file_name, media_type, caption))
         conn.commit()

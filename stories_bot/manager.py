@@ -871,11 +871,21 @@ async def handle_add_media(update: Update, context: CallbackContext):
         await update.message.reply_text(f"❌ Ошибка сохранения: {e}")
         return ADD_MEDIA_WAIT
 
-    await update.message.reply_text(
-        f"✅ Медиа добавлено в пул! (ID: {media_id}, тип: {media_type})\n"
-        f"Подпись: {caption or '(без подписи)'}"
-        f"\n\n📤 Отправь еще или /cancel чтобы завершить"
-    )
+    # Проверяем, было ли медиа уже в пуле (add_media вернул существующий ID)
+    existing_media = stories_db.get_media(media_id)
+    if existing_media and existing_media['file_name'] != file_name:
+        # Файл уже был в пуле под другим именем
+        await update.message.reply_text(
+            f"ℹ️ Это медиа уже есть в пуле! (ID: {media_id}, тип: {media_type})\n"
+            f"Подпись: {existing_media.get('caption') or '(без подписи)'}\n\n"
+            f"📤 Отправь еще или /cancel чтобы завершить"
+        )
+    else:
+        await update.message.reply_text(
+            f"✅ Медиа добавлено в пул! (ID: {media_id}, тип: {media_type})\n"
+            f"Подпись: {caption or '(без подписи)'}\n\n"
+            f"📤 Отправь еще или /cancel чтобы завершить"
+        )
     logger.info(f"handle_add_media finished for user {user_id}, returning ADD_MEDIA_WAIT")
     return ADD_MEDIA_WAIT
 
