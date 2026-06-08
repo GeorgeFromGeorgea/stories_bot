@@ -739,7 +739,8 @@ async def handle_menu_buttons(update: Update, context: CallbackContext):
     
     # СБРОС ВСЕХ СОСТОЯНИЙ: если пользователь нажал кнопку меню, 
     # мы должны выйти из любого текущего диалога (add, edit, schedule)
-    if user_id in user_data:
+    # НО НЕ для "📥 Добавить медиа" - это сам вход в диалог!
+    if user_id in user_data and text != "📥 Добавить медиа":
         logger.info(f"Clearing user_data for user {user_id}")
         del user_data[user_id]
 
