@@ -1139,9 +1139,9 @@ def main():
     
 
 
+    application.add_handler(conv_handler_add_media)
     application.add_handler(conv_handler_add)
     application.add_handler(conv_handler_edit)
-    application.add_handler(conv_handler_add_media)
     
     application.run_polling()
 
