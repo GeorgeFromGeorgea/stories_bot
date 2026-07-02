@@ -16,6 +16,7 @@ from pathlib import Path
 from telethon import TelegramClient
 from telethon.tl.functions.stories import SendStoryRequest
 from telethon.tl.types import InputMediaUploadedPhoto, InputMediaUploadedDocument, InputPeerSelf, InputPrivacyValueAllowAll
+from telethon.extensions import html as html_ext
 
 from . import stories_db
 
@@ -162,12 +163,26 @@ async def publish_story(post: dict) -> bool:
         peer = InputPeerSelf()
         privacy = [InputPrivacyValueAllowAll()]
 
+        # Парсим HTML в caption чтобы ссылки (<a href="...">) рендерились как кликабельные
+        caption_clean = caption
+        entities = []
+        if caption and ('<a ' in caption.lower() or '<b>' in caption.lower() or '<i>' in caption.lower()):
+            try:
+                parsed_text, parsed_entities = html_ext.parse(caption)
+                caption_clean = parsed_text
+                entities = parsed_entities
+                if entities:
+                    logger.info(f"🔗 Найдено {len(entities)} HTML-сущностей в caption (ссылки и т.д.)")
+            except Exception as parse_err:
+                logger.warning(f"⚠️ Не удалось распарсить HTML в caption: {parse_err}")
+
         if media_type == "photo":
             media = await client.upload_file(file_path)
             await client(SendStoryRequest(
                 peer=peer,
                 media=InputMediaUploadedPhoto(file=media),
-                caption=caption,
+                caption=caption_clean,
+                entities=entities or None,
                 privacy_rules=privacy
             ))
         elif media_type == "video":
@@ -175,7 +190,8 @@ async def publish_story(post: dict) -> bool:
             await client(SendStoryRequest(
                 peer=peer,
                 media=InputMediaUploadedDocument(file=media, mime_type='video/mp4', attributes=[]),
-                caption=caption,
+                caption=caption_clean,
+                entities=entities or None,
                 privacy_rules=privacy
             ))
         else:
