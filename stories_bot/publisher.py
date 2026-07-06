@@ -160,6 +160,15 @@ async def publish_story(post: dict) -> bool:
     media_type = media_info['media_type']
     media_id = media_info['id']
 
+    # Если у поста нет подписи — берём подпись из выбранного медиа (там может быть ссылка)
+    if not caption:
+        media_caption = media_info.get('caption') or ''
+        if media_caption:
+            caption = media_caption
+            # Пересчитываем caption_hash с учётом подписи медиа
+            caption_hash = stories_db.get_caption_hash(caption)
+            logger.info(f"📝 Используем подпись из медиа: {caption[:80]}")
+
     logger.info(f"📸 Публикация истории #{post_id} (media_id={media_id}, {media_type})...")
     try:
         peer = InputPeerSelf()
