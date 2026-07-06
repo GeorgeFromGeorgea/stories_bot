@@ -16,6 +16,8 @@ from pathlib import Path
 from telethon import TelegramClient
 from telethon.tl.functions.stories import SendStoryRequest
 from telethon.tl.types import InputMediaUploadedPhoto, InputMediaUploadedDocument, InputPeerSelf, InputPrivacyValueAllowAll
+from telethon.tl.types import MessageEntityTextUrl
+import re
 from telethon.extensions import html as html_ext
 
 from . import stories_db
@@ -175,6 +177,16 @@ async def publish_story(post: dict) -> bool:
                     logger.info(f"🔗 Найдено {len(entities)} HTML-сущностей в caption (ссылки и т.д.)")
             except Exception as parse_err:
                 logger.warning(f"⚠️ Не удалось распарсить HTML в caption: {parse_err}")
+
+        # Если нет HTML-entities, ищем голые URL в caption и создаём кликабельные entities
+        if not entities and caption:
+            url_pattern = re.compile(r'https?://[^\s<>\"\'\)]+')
+            for match in url_pattern.finditer(caption):
+                url = match.group()
+                offset = match.start()
+                length = len(url)
+                entities.append(MessageEntityTextUrl(url=url, offset=offset, length=length))
+                logger.info(f"🔗 Найден голый URL в caption: {url} (offset={offset}, len={length})")
 
         if media_type == "photo":
             media = await client.upload_file(file_path)
