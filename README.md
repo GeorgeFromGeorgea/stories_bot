@@ -108,13 +108,13 @@ stories-bot run
 
 ```bash
 # Установить токен бота (получи у @BotFather)
-stories-bot set-token "1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ"
+stories-bot set-token "YOUR_BOT_TOKEN_HERE"
 
 # Установить API_ID (получи на my.telegram.org/apps)
-stories-bot set-api-id 12345678
+stories-bot set-api-id YOUR_API_ID
 
 # Установить API_HASH (получи на my.telegram.org/apps)
-stories-bot set-api-hash "0123456789abcdef0123456789abcdef"
+stories-bot set-api-hash "YOUR_API_HASH_HERE"
 
 # Посмотреть текущие настройки
 stories-bot config
@@ -174,9 +174,9 @@ stories-bot run
 Создай файл `.env` в рабочей директории:
 
 ```env
-BOT_TOKEN="123456...wxYZ"
-API_ID=12345678
-API_HASH="0123456789abcdef0123456789abcdef"
+BOT_TOKEN="YOUR_BOT_TOKEN_HERE"
+API_ID=YOUR_API_ID
+API_HASH="YOUR_API_HASH_HERE"
 SESSION_NAME="stories_session"
 ```
 
