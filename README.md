@@ -99,9 +99,9 @@ stories-bot run
 Create a `.env` file in your working directory:
 
 ```env
-BOT_TOKEN="1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ"
-API_ID=12345678
-API_HASH="0123456789abcdef0123456789abcdef"
+BOT_TOKEN="Get from [@BotFather](https://t.me/BotFather)"
+API_ID=Get from [my.telegram.org/apps](https://my.telegram.org/apps)
+API_HASH="Get from [my.telegram.org/apps](https://my.telegram.org/apps)"
 SESSION_NAME="stories_session"
 ```
 
