@@ -96,6 +96,110 @@ def cmd_init():
     print()
 
 
+# ─── Config helpers ────────────────────────────────────────────────────────
+
+ENV_KEYS = {
+    "BOT_TOKEN": "BOT_TOKEN",
+    "API_ID": "API_ID",
+    "API_HASH": "API_HASH",
+    "SESSION_NAME": "SESSION_NAME",
+}
+
+
+def _read_env() -> dict:
+    """Read .env into a dict (preserves comments and order)."""
+    env_path = get_env_path()
+    result = {}
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                stripped = line.strip()
+                if stripped and not stripped.startswith("#") and "=" in stripped:
+                    key, _, val = stripped.partition("=")
+                    result[key.strip()] = val.strip().strip('"').strip("'")
+    return result
+
+
+def _write_env(data: dict):
+    """Write dict back to .env, preserving comments from original."""
+    env_path = get_env_path()
+    lines = []
+    if env_path.exists():
+        with open(env_path) as f:
+            for raw in f:
+                stripped = raw.strip()
+                if stripped and not stripped.startswith("#") and "=" in stripped:
+                    key = stripped.partition("=")[0].strip()
+                    if key in data:
+                        val = data[key]
+                        lines.append(f'{key}="{val}"\n')
+                    else:
+                        lines.append(raw)
+                else:
+                    lines.append(raw)
+    # Add any new keys not yet in file
+    for key, val in data.items():
+        if key not in {l.partition("=")[0].strip() for l in lines if "=" in l}:
+            lines.append(f'{key}="{val}"\n')
+    with open(env_path, "w") as f:
+        f.writelines(lines)
+
+
+def _set_env_key(key: str, value: str):
+    """Set a single key in .env."""
+    env_path = get_env_path()
+    data = _read_env()
+    data[key] = value
+    _write_env(data)
+    print(f"\n  ✓ {key} = \"{value}\"\n")
+
+
+def cmd_set_token():
+    """Set BOT_TOKEN in .env."""
+    if len(sys.argv) < 3:
+        print("Использование: stories-bot set-token <TOKEN>\n")
+        print("  Получи токен у @BotFather в Telegram")
+        sys.exit(1)
+    _set_env_key("BOT_TOKEN", sys.argv[2])
+
+
+def cmd_set_api_id():
+    """Set API_ID in .env."""
+    if len(sys.argv) < 3:
+        print("Использование: stories-bot set-api-id <ID>\n")
+        print("  Получи на https://my.telegram.org/apps")
+        sys.exit(1)
+    _set_env_key("API_ID", sys.argv[2])
+
+
+def cmd_set_api_hash():
+    """Set API_HASH in .env."""
+    if len(sys.argv) < 3:
+        print("Использование: stories-bot set-api-hash <HASH>\n")
+        print("  Получи на https://my.telegram.org/apps")
+        sys.exit(1)
+    _set_env_key("API_HASH", sys.argv[2])
+
+
+def cmd_config():
+    """Show current configuration."""
+    data = _read_env()
+    if not data:
+        print("\n  ⚠️  Файл .env не найден. Запусти: stories-bot init\n")
+        return
+    print("\n  📋 Текущая конфигурация:")
+    print("  " + "─" * 40)
+    for key in ["BOT_TOKEN", "API_ID", "API_HASH", "SESSION_NAME"]:
+        val = data.get(key, "—")
+        if key == "BOT_TOKEN" and val and len(val) > 10:
+            val = val[:8] + "..." + val[-4:]
+        elif key == "API_HASH" and val and len(val) > 10:
+            val = val[:6] + "..." + val[-4:]
+        print(f"  {key:15s} = {val}")
+    print("  " + "─" * 40)
+    print()
+
+
 def cmd_run():
     """Run the stories bot (manager + publisher)."""
     load_env()
@@ -187,23 +291,31 @@ def cmd_help():
     print("""
 Stories Bot - Telegram Stories Publisher
 
-Usage:
-    stories-bot <command>
+Использование:
+    stories-bot <команда>
 
-Commands:
-    init     Interactive setup wizard (creates .env file)
-    run      Start the bot (manager + publisher)
-    login    First-time login for userbot
-    help     Show this help message
+Команды:
+    init              Интерактивный мастер настройки
+    login             Первый вход userbot
+    run               Запуск бота (менеджер + публикатор)
+    config            Показать текущую конфигурацию
+    set-token         Установить токен бота
+    set-api-id        Установить API_ID
+    set-api-hash      Установить API_HASH
+    help              Показать эту справку
 
-Examples:
-    stories-bot init      # First time setup
-    stories-bot login     # Login userbot (first time)
-    stories-bot run       # Start the bot
+Примеры:
+    stories-bot init                    # Первичная настройка
+    stories-bot set-token "123:ABC"     # Установить токен
+    stories-bot set-api-id 12345678     # Установить API_ID
+    stories-bot set-api-hash "abc123"   # Установить API_HASH
+    stories-bot config                  # Посмотреть настройки
+    stories-bot login                   # Войти (первый раз)
+    stories-bot run                     # Запустить бота
 
-Configuration:
-    After running 'stories-bot init', edit .env file if needed.
-    The .env file should be in your working directory.
+Конфигурация:
+    После 'stories-bot init' или set-* команды,
+    файл .env создаётся/обновляется автоматически.
 """)
 
 
@@ -219,6 +331,10 @@ def main():
         "init": cmd_init,
         "run": cmd_run,
         "login": cmd_login,
+        "config": cmd_config,
+        "set-token": cmd_set_token,
+        "set-api-id": cmd_set_api_id,
+        "set-api-hash": cmd_set_api_hash,
         "help": cmd_help,
     }
     

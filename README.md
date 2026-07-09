@@ -96,9 +96,35 @@ stories-bot run
 | Команда | Описание |
 |---------|----------|
 | `stories-bot init` | Интерактивный мастер настройки |
+| `stories-bot set-token` | Установить токен бота |
+| `stories-bot set-api-id` | Установить API_ID |
+| `stories-bot set-api-hash` | Установить API_HASH |
+| `stories-bot config` | Показать текущую конфигурацию |
 | `stories-bot login` | Первый вход userbot |
 | `stories-bot run` | Запуск бота (менеджер + публикатор) |
 | `stories-bot help` | Показать справку |
+
+### Быстрая настройка через терминал
+
+```bash
+# Установить токен бота (получи у @BotFather)
+stories-bot set-token "1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ"
+
+# Установить API_ID (получи на my.telegram.org/apps)
+stories-bot set-api-id 12345678
+
+# Установить API_HASH (получи на my.telegram.org/apps)
+stories-bot set-api-hash "0123456789abcdef0123456789abcdef"
+
+# Посмотреть текущие настройки
+stories-bot config
+
+# Первый вход (после установки всех ключей)
+stories-bot login
+
+# Запуск бота
+stories-bot run
+```
 
 ## 🤖 Команды бота в Telegram
 
