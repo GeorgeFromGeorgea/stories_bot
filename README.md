@@ -1,16 +1,27 @@
-# Stories Bot
+# Stories Bot 📸
 
-Telegram Stories publisher bot with scheduling support.
+Telegram-бот для автоматической публикации Stories. Управляй публикациями через бота, а бот публикует от твоего имени по расписанию.
 
-## Features
+## 🚀 Возможности
 
-- 📸 Upload photos/videos to media pool
-- ⏰ Schedule posts (one-time or daily)
-- 🎲 Random media selection with daily uniqueness
-- 📱 Interactive management via Telegram bot
-- 🔄 Auto-publishing via userbot
+- **📸 Загрузка медиа** — отправляй фото и видео прямо в бота
+- **⏰ Планирование публикаций** — опубликовать сразу, по расписанию (разово) или ежедневно
+- **🎲 Случайный выбор** — бот автоматически выбирает случайное фото/видео из пула
+- **🚫 Уникальность** — одна и та же комбинация медиа+подпись не повторяется в один день
+- **📝 Подписи** — к каждому посту можно добавить текст
+- **🔗 Подпись репостера** — настройка дефолтной подписи
+- **📱 Управление через Telegram** — удобное меню с кнопками
+- **🔄 Автопубликация** — публикация от твоего имени через userbot
+- **📊 Статистика** — отслеживание опубликованных постов
 
-## Installation
+## 📋 Требования
+
+- Python 3.9+
+- Telegram аккаунт
+- Токен бота от @BotFather
+- API_ID и API_HASH от [my.telegram.org/apps](https://my.telegram.org/apps)
+
+## ⚙️ Установка
 
 ### Linux / macOS
 
@@ -44,155 +55,227 @@ winget install Git.Git
 
 > После установки **закрой и открой PowerShell заново**.
 
-**4. Проверь, что git работает:**
-
-```powershell
-git --version
-```
-
-**5. Установи бота:**
+**4. Установи бота:**
 
 ```powershell
 python -m pip install -U git+https://github.com/GeorgeFromGeorgea/stories_bot.git
 ```
 
-> Если `python --version` показывает просто "Python" (без версии) — значит это заглушка Microsoft Store, а не настоящий Python. Удали её и установи Python через `winget` или с [python.org](https://www.python.org/downloads/), обязательно отметив галочку **"Add Python to PATH"**.
+> Если `python --version` показывает просто "Python" (без версии) — значит это заглушка Microsoft Store. Удали её и установи Python через `winget` или с [python.org](https://www.python.org/downloads/), обязательно отметив **"Add Python to PATH"**.
 
-## Setup
+## 🔧 Настройка
 
-### 1. Initialize configuration
+### 1. Инициализация конфигурации
 
 ```bash
 stories-bot init
 ```
 
-This will ask you for:
-- **BOT_TOKEN** - Get from [@BotFather](https://t.me/BotFather)
-- **API_ID** - Get from [my.telegram.org/apps](https://my.telegram.org/apps)
-- **API_HASH** - Get from [my.telegram.org/apps](https://my.telegram.org/apps)
+Мастер настройки спросит:
+- **BOT_TOKEN** — получи у [@BotFather](https://t.me/BotFather)
+- **API_ID** — получи на [my.telegram.org/apps](https://my.telegram.org/apps)
+- **API_HASH** — получи на [my.telegram.org/apps](https://my.telegram.org/apps)
+- **SESSION_NAME** — имя сессии (можно оставить по умолчанию)
 
-### 2. First-time login (userbot)
+### 2. Первый вход (userbot)
 
 ```bash
 stories-bot login
 ```
 
-Enter your phone number and verification code when prompted.
+Введи номер телефона и код подтверждения. Это нужно только один раз — для авторизации userbot (публикатора).
 
-### 3. Run the bot
+### 3. Запуск бота
 
 ```bash
 stories-bot run
 ```
 
-## CLI Commands
+## 📖 CLI команды
 
-| Command | Description |
-|---------|-------------|
-| `stories-bot init` | Interactive setup wizard |
-| `stories-bot login` | First-time userbot login |
-| `stories-bot run` | Start the bot |
-| `stories-bot help` | Show help |
+| Команда | Описание |
+|---------|----------|
+| `stories-bot init` | Интерактивный мастер настройки |
+| `stories-bot login` | Первый вход userbot |
+| `stories-bot run` | Запуск бота (менеджер + публикатор) |
+| `stories-bot help` | Показать справку |
 
-## Configuration (.env file)
+## 🤖 Команды бота в Telegram
 
-Create a `.env` file in your working directory:
+| Команда | Описание |
+|---------|----------|
+| `/start` | Главное меню |
+| `/list` | Список запланированных постов |
+| `/add_media` | Добавить медиа в пул |
+| `/media_pool` | Просмотр пула медиа |
+| `/delete_media ID` | Удалить медиа из пула |
+| `/stats` | Статистика публикаций |
+| `/cancel` | Отмена текущего действия |
+
+## 🎛 Кнопки меню
+
+| Кнопка | Описание |
+|--------|----------|
+| 🚀 Старт | Главное меню |
+| 📋 Отложенные | Просмотр запланированных постов |
+| 📥 Добавить медиа | Загрузить фото/видео в пул |
+| 📦 Пул медиа | Все загруженные медиафайлы |
+| 📊 Статистика | Статистика публикаций |
+| 🗑 Сброс | Сброс текущего состояния |
+| 🗓 Планировать публикацию | Создать запланированный пост |
+| 🔗 Подпись репостера | Настройка дефолтной подписи |
+| 🕐 Ежедневные | Настройка ежедневных публикаций |
+| 🔄 Рестарт | Перезапуск бота |
+
+## 🔄 Как работает
+
+1. **Загрузи медиа** — отправь фото или видео боту
+2. **Создай пост** — выбери когда публиковать:
+   - **Сразу** — публикация немедленно
+   - **Ежедневно** — автоматическая публикация каждый день в указанное время
+   - **Разово** — публикация в указанную дату и время
+3. **Автопубликация** — бот опубликует автоматически
+
+## 📁 Пул медиа
+
+Бот хранит медиафайлы в пуле. Для ежедневных публикаций:
+- Каждый день выбирается случайное медиа
+- Одно и то же медиа не повторяется в один день
+- Разные подписи имеют независимые пулы
+
+## 🔐 Конфигурация (.env файл)
+
+Создай файл `.env` в рабочей директории:
 
 ```env
-BOT_TOKEN="Get from [@BotFather](https://t.me/BotFather)"
-API_ID=Get from [my.telegram.org/apps](https://my.telegram.org/apps)
-API_HASH="Get from [my.telegram.org/apps](https://my.telegram.org/apps)"
+BOT_TOKEN="123456...wxYZ"
+API_ID=12345678
+API_HASH="0123456789abcdef0123456789abcdef"
 SESSION_NAME="stories_session"
 ```
 
-## Usage
+## 🖥 Размещение на сервере (systemd)
 
-### Manager Bot Commands
+### 1. Создай сервисные файлы
 
-| Command | Description |
-|---------|-------------|
-| `/start` | Show main menu |
-| `/list` | List scheduled posts |
-| `/daily_list` | List daily posts |
-| `/add_media` | Add media to pool |
-| `/media_pool` | View media pool |
-| `/stats` | Show statistics |
-| `/cancel` | Cancel current operation |
+**publisher.service:**
+```ini
+[Unit]
+Description=Stories Bot - Publisher (Telethon)
+After=network.target
 
-### Menu Buttons
+[Service]
+Type=simple
+WorkingDirectory=/root/stories_bot_pkg
+ExecStart=/usr/bin/python3 -m stories_bot.publisher
+Restart=always
+RestartSec=10
+User=root
+Environment=PYTHONPATH=/root/stories_bot_pkg
 
-- 🚀 Старт - Main menu
-- 📋 Отложенные - View scheduled posts
-- 📊 Статистика - Statistics
-- 📥 Добавить медиа - Add media to pool
-- 📦 Пул медиа - View media pool
-- 🗑 Сброс - Reset
-- 🔄 Рестарт - Restart bot
-- 🕐 Ежедневные - Schedule daily post
+[Install]
+WantedBy=multi-user.target
+```
 
-## Updating
+**manager.service:**
+```ini
+[Unit]
+Description=Stories Bot - Manager (Telegram Bot API)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/stories_bot_pkg
+ExecStart=/usr/bin/python3 -m stories_bot.manager
+Restart=always
+RestartSec=10
+User=root
+Environment=PYTHONPATH=/root/stories_bot_pkg
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 2. Запусти сервисы
+
+```bash
+# Скопируй файлы
+sudo cp publisher.service manager.service /etc/systemd/system/
+
+# Перезагрузи systemd
+sudo systemctl daemon-reload
+
+# Запусти
+sudo systemctl start stories-publisher stories-manager
+
+# Включи автозапуск
+sudo systemctl enable stories-publisher stories-manager
+
+# Проверь статус
+sudo systemctl status stories-publisher stories-manager
+```
+
+### 3. Логи
+
+```bash
+# Смотреть логи в реальном времени
+sudo journalctl -u stories-publisher -f
+sudo journalctl -u stories-manager -f
+
+# Последние 50 строк
+sudo journalctl -u stories-publisher -n 50
+```
+
+## 🔄 Обновление
 
 ### Linux / macOS
 
 ```bash
 pip install -U git+https://github.com/GeorgeFromGeorgea/stories_bot.git
 
-# Restart the bot services (if using systemd)
-systemctl restart stories-publisher.service
-systemctl restart stories-manager.service
+# Перезапусти сервисы (если используешь systemd)
+sudo systemctl restart stories-publisher stories-manager
 ```
 
 ### Windows
 
 ```powershell
-py -m pip install -U git+https://github.com/GeorgeFromGeorgea/stories_bot.git
-```
-
-Or if you use `python` command:
-
-```powershell
 python -m pip install -U git+https://github.com/GeorgeFromGeorgea/stories_bot.git
 ```
 
-> **Note:** The `-U` (--upgrade) flag updates the package in-place. No need to uninstall first.
+> Флаг `-U` (--upgrade) обновляет пакет на месте. Переустанавливать не нужно.
 
-## How it works
+## 🔍 Решение проблем
 
-1. **Upload media** - Send photos/videos to the bot
-2. **Create post** - Choose when to publish (now/daily/one-time)
-3. **Auto-publish** - Bot publishes automatically at scheduled time
-
-## Media Pool
-
-The bot maintains a pool of media files. For daily posts:
-- Random media is selected each day
-- Same media won't repeat on the same day
-- Different captions have independent pools
-
-## Troubleshooting
-
-### Bot not responding
+### Бот не отвечает
 
 ```bash
-# Check if bot is running
+# Проверь, запущен ли бот
 ps aux | grep stories-bot
 
-# Check logs
+# Проверь логи
 journalctl -u stories-bot -f
 ```
 
-### Login failed
+### Ошибка входа
 
 ```bash
-# Delete session file and try again
+# Удали файл сессии и попробуй снова
 rm *.session
 stories-bot login
 ```
 
-### Token errors
+### Ошибки токена
 
-Make sure your `.env` file has the correct token from @BotFather.
+Убедись, что в файле `.env` правильный токен от @BotFather.
 
-## License
+### Бот не публикует Stories
+
+Проверь, что userbot авторизован:
+```bash
+stories-bot login
+```
+
+## 📄 Лицензия
 
 MIT
