@@ -896,7 +896,10 @@ async def cmd_media_pool(update: Update, context: CallbackContext):
         await update.message.reply_text("📭 Пул медиа пуст. Используй /add_media чтобы добавить.")
         return
 
-    await update.message.reply_text(f"📦 Пул медиа ({len(media_list)} файлов):\n\nНажми 🗑 чтобы удалить:")
+    await update.message.reply_text(
+        f"📦 Пул медиа ({len(media_list)} файлов):\n\n"
+        "Нажми 🚀 чтобы опубликовать выбранное медиа сейчас или 🗑 чтобы удалить:"
+    )
 
     for m in media_list:
         caption_text = m.get('caption') or '(без подписи)'
@@ -906,7 +909,10 @@ async def cmd_media_pool(update: Update, context: CallbackContext):
             f"Подпись: {caption_text[:50]}\n"
             f"Добавлено: {m['created_at']}"
         )
-        buttons = [[InlineKeyboardButton("🗑 Удалить", callback_data=f"del_media_{m['id']}")]]
+        buttons = [[
+            InlineKeyboardButton("🚀 Опубликовать сейчас", callback_data=f"pub_media_{m['id']}"),
+            InlineKeyboardButton("🗑 Удалить", callback_data=f"del_media_{m['id']}")
+        ]]
         reply_markup = InlineKeyboardMarkup(buttons)
         try:
             if m['media_type'] == 'photo':
@@ -952,6 +958,48 @@ async def cmd_delete_media(update: Update, context: CallbackContext):
         f"Подпись: {(media.get('caption') or '(без подписи)')[:50]}",
         reply_markup=InlineKeyboardMarkup(buttons)
     )
+
+async def button_handler_publish_media_now(update: Update, context: CallbackContext):
+    """Поставить выбранное медиа из пула в очередь на немедленную публикацию."""
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    logger.info(f"button_handler_publish_media_now: callback_data={data}")
+
+    try:
+        media_id = int(data.replace("pub_media_", ""))
+    except ValueError:
+        try:
+            await query.edit_message_caption("❌ Ошибка: неверный формат ID медиа.")
+        except Exception:
+            await query.edit_message_text("❌ Ошибка: неверный формат ID медиа.")
+        return
+
+    media = stories_db.get_media(media_id)
+    if not media:
+        try:
+            await query.edit_message_caption(f"❌ Медиа #{media_id} не найдено в пуле.")
+        except Exception:
+            await query.edit_message_text(f"❌ Медиа #{media_id} не найдено в пуле.")
+        return
+
+    caption = media.get("caption") or ""
+    post_id = stories_db.add_post(
+        post_type="now",
+        post_time="now",
+        media_id=media_id,
+        caption=caption,
+    )
+    success_text = (
+        f"✅ Медиа #{media_id} поставлено в очередь на публикацию сейчас.\n"
+        f"🆔 Пост #{post_id}\n"
+        "⏱ Publisher заберёт его при ближайшей проверке."
+    )
+    try:
+        await query.edit_message_caption(success_text)
+    except Exception:
+        await query.edit_message_text(success_text)
+
 
 async def button_handler_delete_media(update: Update, context: CallbackContext):
     """Обработка подтверждения удаления медиа."""
@@ -1116,6 +1164,7 @@ def main():
     application.add_handler(CommandHandler("delete_media", cmd_delete_media))
     
     # Обработчики callback-кнопок
+    application.add_handler(CallbackQueryHandler(button_handler_publish_media_now, pattern=r"^pub_media_"))
     application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"))
     application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"))
     
