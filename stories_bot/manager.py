@@ -944,11 +944,12 @@ async def cmd_media_pool(update: Update, context: CallbackContext):
 async def cmd_delete_media(update: Update, context: CallbackContext):
     """Команда /delete_media <ID> — удалить конкретное медиа из пула."""
     if not context.args:
+        user_id = update.effective_user.id if update.effective_user else None
+        if user_id:
+            user_data[user_id] = {"awaiting_delete_media": True}
         await update.message.reply_text(
-            "❌ Укажи ID медиа для удаления.\n"
-            "Пример: `/delete_media 5`\n\n"
-            "Посмотреть ID можно через /media_pool",
-            
+            "❌ Укажи ID медиа одним сообщением: /delete_media 125\n"
+            "или отправь следующим сообщением только число, например: 125"
         )
         return
     
@@ -963,17 +964,38 @@ async def cmd_delete_media(update: Update, context: CallbackContext):
         await update.message.reply_text(f"❌ Медиа с ID {media_id} не найдено.")
         return
     
-    # Подтверждение удаления
-    buttons = [
-        [InlineKeyboardButton("✅ Да, удалить", callback_data=f"del_media_{media_id}")],
-        [InlineKeyboardButton("❌ Отмена", callback_data="del_media_cancel")]
-    ]
-    await update.message.reply_text(
-        f"🗑 Удалить медиа #{media_id}?\n"
-        f"Тип: {media['media_type']}\n"
-        f"Подпись: {(media.get('caption') or '(без подписи)')[:50]}",
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
+    # Direct destructive command: do not require an inline confirmation.
+    # Inline callbacks are unreliable in this deployment/client, so the
+    # command itself must complete the mutation.
+    if stories_db.delete_media(media_id):
+        await update.message.reply_text(
+            f"✅ Медиа #{media_id} удалено из пула и с диска.\n"
+            "Проверьте: /media_pool"
+        )
+    else:
+        await update.message.reply_text(f"❌ Не удалось удалить медиа #{media_id}.")
+
+
+async def handle_pending_delete_id(update: Update, context: CallbackContext):
+    """Accept an ID sent as a second message after /delete_media."""
+    user_id = update.effective_user.id if update.effective_user else None
+    if not user_id or not user_data.get(user_id, {}).get("awaiting_delete_media"):
+        return
+    user_data.pop(user_id, None)
+    try:
+        media_id = int(update.message.text.strip())
+    except (TypeError, ValueError):
+        await update.message.reply_text("❌ ID должен быть числом. Используйте /delete_media снова.")
+        return
+    media = stories_db.get_media(media_id)
+    if not media:
+        await update.message.reply_text(f"❌ Медиа с ID {media_id} не найдено.")
+        return
+    if stories_db.delete_media(media_id):
+        await update.message.reply_text(f"✅ Медиа #{media_id} удалено из пула и с диска.")
+    else:
+        await update.message.reply_text(f"❌ Не удалось удалить медиа #{media_id}.")
+
 
 async def button_handler_delete_media(update: Update, context: CallbackContext):
     """Обработка подтверждения удаления медиа."""
@@ -1137,7 +1159,10 @@ def main():
     application.add_handler(CommandHandler("media_pool", cmd_media_pool))
     application.add_handler(CommandHandler("delete_media", cmd_delete_media))
     application.add_handler(CommandHandler("schedule_daily", cmd_schedule_daily))
-    application.add_handler(CommandHandler("schedule_time", cmd_schedule_daily))
+    application.add_handler(CommandHandler("schedule_time", cmd_schedule_time))
+
+    # Plain-text fallback for clients where inline callbacks are not delivered.
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_pending_delete_id), group=0)
 
     # Critical callbacks must be registered outside ConversationHandlers.
     # Otherwise an old active conversation can swallow delete/schedule clicks.
