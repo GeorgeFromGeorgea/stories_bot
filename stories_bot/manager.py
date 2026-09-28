@@ -147,16 +147,11 @@ async def start(update: Update, context: CallbackContext):
     
     await update.message.reply_text(
         "🤖 Управляющий бот для Telegram Stories\n\n"
-        "Просто отправь мне фото или видео, и я помогу запланировать историю!\n\n"
-        "Доступные команды:\n"
-        "/start — перезапустить бота и показать меню\n"
-        "/add_media — добавить фото/видео в пул для рандомной публикации\n"
-        "/media_pool — показать все медиа в пуле\n"
-        "/delete_media ID — удалить медиа из пула\n"
-        "/schedule_time HH:MM — надёжно запланировать ежедневный пост\n"
-        "/list — список запланированных постов\n"
-        "/stats — статистика\n"
-        "/cancel — отмена действия",
+        "Команды для проверки работы:\n"
+        "/media_pool — показать пул\n"
+        "/delete_media 125 — удалить медиа\n"
+        "/schedule_time 14:30 — создать ежедневный пост\n\n"
+        "Старые inline-кнопки Telegram могут не передавать callback.",
         reply_markup=reply_markup
     )
 
@@ -965,10 +960,9 @@ async def cmd_delete_media(update: Update, context: CallbackContext):
     """Команда /delete_media <ID> — удалить конкретное медиа из пула."""
     if not context.args:
         await update.message.reply_text(
-            "❌ Укажи ID медиа для удаления.\n"
-            "Пример: `/delete_media 5`\n\n"
-            "Посмотреть ID можно через /media_pool",
-            
+            "❌ Укажи ID медиа.\n"
+            "Пример: `/delete_media 125`\n\n"
+            "Доступные ID: 123, 124, 125",
         )
         return
     
@@ -985,7 +979,10 @@ async def cmd_delete_media(update: Update, context: CallbackContext):
         await update.message.reply_text(f"❌ Медиа с ID {media_id} не найдено.")
         return
     if stories_db.delete_media(media_id):
-        await update.message.reply_text(f"✅ Медиа #{media_id} удалено из пула вместе с файлом.")
+        await update.message.reply_text(
+            f"✅ Медиа #{media_id} удалено из пула вместе с файлом.\n"
+            "Проверьте результат командой /media_pool"
+        )
     else:
         await update.message.reply_text(f"❌ Не удалось удалить медиа #{media_id}.")
     return
