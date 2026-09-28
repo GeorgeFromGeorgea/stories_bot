@@ -1180,9 +1180,29 @@ def main():
     application.add_handler(CommandHandler("delete_media", cmd_delete_media))
     
     # Обработчики callback-кнопок
-    application.add_handler(CallbackQueryHandler(button_handler_publish_media_now, pattern=r"^pub_media_"))
-    application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"))
-    application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"))
+    application.add_handler(CallbackQueryHandler(button_handler_publish_media_now, pattern=r"^pub_media_"), group=0)
+    application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"), group=0)
+    application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"), group=0)
+
+    # Универсальный fallback: ConversationHandler может перехватить callback
+    # в состоянии устаревшего диалога. Эти кнопки должны работать всегда.
+    async def callback_fallback(update: Update, context: CallbackContext):
+        query = update.callback_query
+        data = query.data or ""
+        logger.info("callback_fallback received: %s", data)
+        if data.startswith("del_media_"):
+            return await button_handler_delete_media(update, context)
+        if data.startswith("del_daily_"):
+            return await button_handler_delete_daily(update, context)
+        if data.startswith("pub_media_"):
+            return await button_handler_publish_media_now(update, context)
+        if data.startswith("schedule_hour_"):
+            return await schedule_daily_get_hour(update, context)
+        if data.startswith("schedule_min_"):
+            return await schedule_daily_get_minute(update, context)
+        await query.answer("⚠️ Кнопка устарела. Откройте меню заново.", show_alert=True)
+
+    application.add_handler(CallbackQueryHandler(callback_fallback), group=1)
     
     # Диалоги
     conv_handler_add_media = ConversationHandler(
