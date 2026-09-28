@@ -1119,7 +1119,6 @@ def main():
 
     # Critical callbacks must be registered outside ConversationHandlers.
     # Otherwise an old active conversation can swallow delete/schedule clicks.
-    application.add_handler(CallbackQueryHandler(button_handler_publish_media_now, pattern=r"^pub_media_"), group=0)
     application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"), group=0)
     application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"), group=0)
 
