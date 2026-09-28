@@ -1166,8 +1166,13 @@ def main():
 
     # Critical callbacks must be registered outside ConversationHandlers.
     # Otherwise an old active conversation can swallow delete/schedule clicks.
-    application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"), group=0)
-    application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"), group=0)
+    # Register critical callbacks in a group BEFORE all ConversationHandlers.
+    # A ConversationHandler registered earlier in group 0 otherwise consumes
+    # the callback and the global handler never sees it.
+    application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"), group=-1)
+    application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"), group=-1)
+    application.add_handler(CallbackQueryHandler(schedule_daily_get_hour, pattern=r"^schedule_hour_"), group=-1)
+    application.add_handler(CallbackQueryHandler(schedule_daily_get_minute, pattern=r"^schedule_min_"), group=-1)
 
     # Final callback fallback: log and dispatch critical actions even when an
     # active ConversationHandler has captured the update.
