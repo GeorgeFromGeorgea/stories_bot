@@ -1122,6 +1122,25 @@ def main():
     application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"), group=0)
     application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"), group=0)
 
+    # Final callback fallback: log and dispatch critical actions even when an
+    # active ConversationHandler has captured the update.
+    async def callback_fallback(update: Update, context: CallbackContext):
+        query = update.callback_query
+        if not query:
+            return
+        data = query.data or ""
+        logger.info("callback_fallback: data=%s user=%s", data, update.effective_user.id if update.effective_user else None)
+        if data.startswith("del_media_"):
+            return await button_handler_delete_media(update, context)
+        if data.startswith("del_daily_"):
+            return await button_handler_delete_daily(update, context)
+        if data.startswith("schedule_hour_"):
+            return await schedule_daily_get_hour(update, context)
+        if data.startswith("schedule_min_"):
+            return await schedule_daily_get_minute(update, context)
+
+    application.add_handler(CallbackQueryHandler(callback_fallback), group=1)
+
     conv_handler_add_media = ConversationHandler(
         entry_points=[
             CommandHandler("add_media", cmd_add_media),
