@@ -1114,12 +1114,15 @@ def main():
     application.add_handler(CommandHandler("stats", cmd_stats))
     application.add_handler(CommandHandler("media_pool", cmd_media_pool))
     application.add_handler(CommandHandler("delete_media", cmd_delete_media))
-    
-    # Обработчики callback-кнопок
-    application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"))
-    application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"))
-    
-    # Диалоги
+    application.add_handler(CommandHandler("schedule_daily", cmd_schedule_daily))
+    application.add_handler(CommandHandler("schedule_time", cmd_schedule_daily))
+
+    # Critical callbacks must be registered outside ConversationHandlers.
+    # Otherwise an old active conversation can swallow delete/schedule clicks.
+    application.add_handler(CallbackQueryHandler(button_handler_publish_media_now, pattern=r"^pub_media_"), group=0)
+    application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"), group=0)
+    application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"), group=0)
+
     conv_handler_add_media = ConversationHandler(
         entry_points=[
             CommandHandler("add_media", cmd_add_media),
