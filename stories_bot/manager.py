@@ -779,6 +779,28 @@ async def cmd_schedule_daily(update: Update, context: CallbackContext):
     )
     return SCHEDULE_DAILY_HOUR
 
+async def cmd_schedule_time(update: Update, context: CallbackContext):
+    """Create a daily schedule directly: /schedule_time HH:MM."""
+    if not context.args:
+        await update.message.reply_text("Использование: /schedule_time 14:30")
+        return
+    value = context.args[0].strip()
+    try:
+        hour_s, minute_s = value.split(":", 1)
+        hour, minute = int(hour_s), int(minute_s)
+        if not (0 <= hour <= 23 and minute in {0, 15, 30, 45}):
+            raise ValueError
+    except (ValueError, TypeError):
+        await update.message.reply_text("❌ Формат HH:MM; минуты только 00, 15, 30 или 45.")
+        return
+    time_str = f"{hour:02d}:{minute:02d}"
+    post_id = stories_db.add_post(post_type="daily", post_time=time_str, media_id=-1, caption="")
+    await update.message.reply_text(
+        f"✅ Ежедневная публикация #{post_id} запланирована на {time_str}.\n"
+        "Медиа будет выбрано случайно из пула."
+    )
+
+
 async def schedule_daily_get_hour(update: Update, context: CallbackContext):
     """Получаем час для ежедневного поста."""
     query = update.callback_query
