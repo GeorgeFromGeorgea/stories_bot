@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 CAPTION, CHOOSE_PLAN, PICK_HOUR, PICK_MINUTE, PICK_CALENDAR, DEFAULT_SIGNATURE_TEXT = range(6)
 
 # Состояния для планировщика ежедневных публикаций
-SCHEDULE_DAILY_HOUR, SCHEDULE_DAILY_MINUTE = range(15, 17)
+SCHEDULE_DAILY_HOUR, SCHEDULE_DAILY_MINUTE, SCHEDULE_DAILY_TEXT_TIME = range(15, 18)
 
 # Состояния для диалога редактирования
 EDIT_FIELD, EDIT_VALUE, CONFIRM_DELETE, EDIT_MEDIA = range(3, 7)
@@ -153,6 +153,7 @@ async def start(update: Update, context: CallbackContext):
         "/add_media — добавить фото/видео в пул для рандомной публикации\n"
         "/media_pool — показать все медиа в пуле\n"
         "/delete_media ID — удалить медиа из пула\n"
+        "/schedule_time HH:MM — надёжно запланировать ежедневный пост\n"
         "/list — список запланированных постов\n"
         "/stats — статистика\n"
         "/cancel — отмена действия",
@@ -782,6 +783,28 @@ async def cmd_schedule_daily(update: Update, context: CallbackContext):
     )
     return SCHEDULE_DAILY_HOUR
 
+
+async def cmd_schedule_time(update: Update, context: CallbackContext):
+    """Надёжный планировщик без inline-кнопок: /schedule_time HH:MM."""
+    if not context.args:
+        await update.message.reply_text("Использование: /schedule_time 14:30")
+        return
+    value = context.args[0].strip()
+    try:
+        hour_s, minute_s = value.split(":", 1)
+        hour, minute = int(hour_s), int(minute_s)
+        if not (0 <= hour <= 23 and minute in {0, 15, 30, 45}):
+            raise ValueError
+    except (ValueError, TypeError):
+        await update.message.reply_text("❌ Введите время HH:MM. Минуты: 00, 15, 30 или 45.")
+        return
+    time_str = f"{hour:02d}:{minute:02d}"
+    post_id = stories_db.add_post(post_type="daily", post_time=time_str, media_id=-1, caption="")
+    await update.message.reply_text(
+        f"✅ Ежедневная публикация #{post_id} запланирована на {time_str}.\n"
+        "Медиа будет выбрано случайно из пула."
+    )
+
 async def schedule_daily_get_hour(update: Update, context: CallbackContext):
     """Получаем час для ежедневного поста."""
     query = update.callback_query
@@ -955,22 +978,17 @@ async def cmd_delete_media(update: Update, context: CallbackContext):
         await update.message.reply_text("❌ ID должен быть числом.")
         return
     
+    # Подтверждение удаления через inline-кнопку остаётся доступным, но команда
+    # работает автономно и не зависит от callback_query.
     media = stories_db.get_media(media_id)
     if not media:
         await update.message.reply_text(f"❌ Медиа с ID {media_id} не найдено.")
         return
-    
-    # Подтверждение удаления
-    buttons = [
-        [InlineKeyboardButton("✅ Да, удалить", callback_data=f"del_media_{media_id}")],
-        [InlineKeyboardButton("❌ Отмена", callback_data="del_media_cancel")]
-    ]
-    await update.message.reply_text(
-        f"🗑 Удалить медиа #{media_id}?\n"
-        f"Тип: {media['media_type']}\n"
-        f"Подпись: {(media.get('caption') or '(без подписи)')[:50]}",
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
+    if stories_db.delete_media(media_id):
+        await update.message.reply_text(f"✅ Медиа #{media_id} удалено из пула вместе с файлом.")
+    else:
+        await update.message.reply_text(f"❌ Не удалось удалить медиа #{media_id}.")
+    return
 
 async def button_handler_publish_media_now(update: Update, context: CallbackContext):
     """Поставить выбранное медиа из пула в очередь на немедленную публикацию."""
@@ -1178,6 +1196,8 @@ def main():
     application.add_handler(CommandHandler("stats", cmd_stats))
     application.add_handler(CommandHandler("media_pool", cmd_media_pool))
     application.add_handler(CommandHandler("delete_media", cmd_delete_media))
+    application.add_handler(CommandHandler("schedule_daily", cmd_schedule_daily))
+    application.add_handler(CommandHandler("schedule_time", cmd_schedule_time))
     
     # Обработчики callback-кнопок
     application.add_handler(CallbackQueryHandler(button_handler_publish_media_now, pattern=r"^pub_media_"), group=0)
