@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 CAPTION, CHOOSE_PLAN, PICK_HOUR, PICK_MINUTE, PICK_CALENDAR, DEFAULT_SIGNATURE_TEXT = range(6)
 
 # Состояния для планировщика ежедневных публикаций
-SCHEDULE_DAILY_HOUR, SCHEDULE_DAILY_MINUTE, SCHEDULE_DAILY_TEXT_TIME = range(15, 18)
+SCHEDULE_DAILY_HOUR, SCHEDULE_DAILY_MINUTE = range(15, 17)
 
 # Состояния для диалога редактирования
 EDIT_FIELD, EDIT_VALUE, CONFIRM_DELETE, EDIT_MEDIA = range(3, 7)
@@ -147,11 +147,15 @@ async def start(update: Update, context: CallbackContext):
     
     await update.message.reply_text(
         "🤖 Управляющий бот для Telegram Stories\n\n"
-        "Команды для проверки работы:\n"
-        "/media_pool — показать пул\n"
-        "/delete_media 125 — удалить медиа\n"
-        "/schedule_time 14:30 — создать ежедневный пост\n\n"
-        "Старые inline-кнопки Telegram могут не передавать callback.",
+        "Просто отправь мне фото или видео, и я помогу запланировать историю!\n\n"
+        "Доступные команды:\n"
+        "/start — перезапустить бота и показать меню\n"
+        "/add_media — добавить фото/видео в пул для рандомной публикации\n"
+        "/media_pool — показать все медиа в пуле\n"
+        "/delete_media ID — удалить медиа из пула\n"
+        "/list — список запланированных постов\n"
+        "/stats — статистика\n"
+        "/cancel — отмена действия",
         reply_markup=reply_markup
     )
 
@@ -768,37 +772,12 @@ async def handle_menu_buttons(update: Update, context: CallbackContext):
     return None
 
 async def cmd_schedule_daily(update: Update, context: CallbackContext):
-    """Кнопка/команда планирования ежедневной публикации."""
-    user_id = update.effective_user.id if update.effective_user else None
-    if user_id in user_data:
-        del user_data[user_id]
+    """Кнопка «🗓 Планировать публикацию» — планировка только по времени без медиа и подписи."""
     await update.message.reply_text(
         "⏰ Выберите час для ежедневной публикации:",
         reply_markup=build_hour_picker("schedule")
     )
     return SCHEDULE_DAILY_HOUR
-
-
-async def cmd_schedule_time(update: Update, context: CallbackContext):
-    """Надёжный планировщик без inline-кнопок: /schedule_time HH:MM."""
-    if not context.args:
-        await update.message.reply_text("Использование: /schedule_time 14:30")
-        return
-    value = context.args[0].strip()
-    try:
-        hour_s, minute_s = value.split(":", 1)
-        hour, minute = int(hour_s), int(minute_s)
-        if not (0 <= hour <= 23 and minute in {0, 15, 30, 45}):
-            raise ValueError
-    except (ValueError, TypeError):
-        await update.message.reply_text("❌ Введите время HH:MM. Минуты: 00, 15, 30 или 45.")
-        return
-    time_str = f"{hour:02d}:{minute:02d}"
-    post_id = stories_db.add_post(post_type="daily", post_time=time_str, media_id=-1, caption="")
-    await update.message.reply_text(
-        f"✅ Ежедневная публикация #{post_id} запланирована на {time_str}.\n"
-        "Медиа будет выбрано случайно из пула."
-    )
 
 async def schedule_daily_get_hour(update: Update, context: CallbackContext):
     """Получаем час для ежедневного поста."""
@@ -818,14 +797,8 @@ async def schedule_daily_get_minute(update: Update, context: CallbackContext):
     await query.answer()
     data = query.data.replace("schedule_min_", "")
     parts = data.split("_")
-    if len(parts) != 2 or not all(part.isdigit() for part in parts):
-        await query.edit_message_text("❌ Некорректное время. Попробуйте планирование заново.")
-        return ConversationHandler.END
-    hour, minute = parts
-    if not (0 <= int(hour) <= 23 and int(minute) in {0, 15, 30, 45}):
-        await query.edit_message_text("❌ Некорректное время. Попробуйте планирование заново.")
-        return ConversationHandler.END
-    time_str = f"{int(hour):02d}:{int(minute):02d}"
+    hour, minute = parts[0], parts[1]
+    time_str = f"{hour}:{minute}"
     
     post_id = stories_db.add_post(post_type="daily", post_time=time_str, media_id=-1, caption='')
     
@@ -894,10 +867,6 @@ async def handle_add_media(update: Update, context: CallbackContext):
         logger.info(f"handle_add_media: media_id={media_id}, will stay in ADD_MEDIA_WAIT for more files")
     except Exception as e:
         logger.error(f"handle_add_media: ошибка сохранения в БД: {e}")
-        try:
-            Path(file_path).unlink(missing_ok=True)
-        except Exception:
-            pass
         await update.message.reply_text(f"❌ Ошибка сохранения: {e}")
         return ADD_MEDIA_WAIT
 
@@ -927,10 +896,7 @@ async def cmd_media_pool(update: Update, context: CallbackContext):
         await update.message.reply_text("📭 Пул медиа пуст. Используй /add_media чтобы добавить.")
         return
 
-    await update.message.reply_text(
-        f"📦 Пул медиа ({len(media_list)} файлов):\n\n"
-        "Нажми 🚀 чтобы опубликовать выбранное медиа сейчас или 🗑 чтобы удалить:"
-    )
+    await update.message.reply_text(f"📦 Пул медиа ({len(media_list)} файлов):\n\nНажми 🗑 чтобы удалить:")
 
     for m in media_list:
         caption_text = m.get('caption') or '(без подписи)'
@@ -940,10 +906,7 @@ async def cmd_media_pool(update: Update, context: CallbackContext):
             f"Подпись: {caption_text[:50]}\n"
             f"Добавлено: {m['created_at']}"
         )
-        buttons = [[
-            InlineKeyboardButton("🚀 Опубликовать сейчас", callback_data=f"pub_media_{m['id']}"),
-            InlineKeyboardButton("🗑 Удалить", callback_data=f"del_media_{m['id']}")
-        ]]
+        buttons = [[InlineKeyboardButton("🗑 Удалить", callback_data=f"del_media_{m['id']}")]]
         reply_markup = InlineKeyboardMarkup(buttons)
         try:
             if m['media_type'] == 'photo':
@@ -960,9 +923,10 @@ async def cmd_delete_media(update: Update, context: CallbackContext):
     """Команда /delete_media <ID> — удалить конкретное медиа из пула."""
     if not context.args:
         await update.message.reply_text(
-            "❌ Укажи ID медиа.\n"
-            "Пример: `/delete_media 125`\n\n"
-            "Доступные ID: 123, 124, 125",
+            "❌ Укажи ID медиа для удаления.\n"
+            "Пример: `/delete_media 5`\n\n"
+            "Посмотреть ID можно через /media_pool",
+            
         )
         return
     
@@ -972,62 +936,22 @@ async def cmd_delete_media(update: Update, context: CallbackContext):
         await update.message.reply_text("❌ ID должен быть числом.")
         return
     
-    # Подтверждение удаления через inline-кнопку остаётся доступным, но команда
-    # работает автономно и не зависит от callback_query.
     media = stories_db.get_media(media_id)
     if not media:
         await update.message.reply_text(f"❌ Медиа с ID {media_id} не найдено.")
         return
-    if stories_db.delete_media(media_id):
-        await update.message.reply_text(
-            f"✅ Медиа #{media_id} удалено из пула вместе с файлом.\n"
-            "Проверьте результат командой /media_pool"
-        )
-    else:
-        await update.message.reply_text(f"❌ Не удалось удалить медиа #{media_id}.")
-    return
-
-async def button_handler_publish_media_now(update: Update, context: CallbackContext):
-    """Поставить выбранное медиа из пула в очередь на немедленную публикацию."""
-    query = update.callback_query
-    await query.answer()
-    data = query.data
-    logger.info(f"button_handler_publish_media_now: callback_data={data}")
-
-    try:
-        media_id = int(data.replace("pub_media_", ""))
-    except ValueError:
-        try:
-            await query.edit_message_caption("❌ Ошибка: неверный формат ID медиа.")
-        except Exception:
-            await query.edit_message_text("❌ Ошибка: неверный формат ID медиа.")
-        return
-
-    media = stories_db.get_media(media_id)
-    if not media:
-        try:
-            await query.edit_message_caption(f"❌ Медиа #{media_id} не найдено в пуле.")
-        except Exception:
-            await query.edit_message_text(f"❌ Медиа #{media_id} не найдено в пуле.")
-        return
-
-    caption = media.get("caption") or ""
-    post_id = stories_db.add_post(
-        post_type="now",
-        post_time="now",
-        media_id=media_id,
-        caption=caption,
+    
+    # Подтверждение удаления
+    buttons = [
+        [InlineKeyboardButton("✅ Да, удалить", callback_data=f"del_media_{media_id}")],
+        [InlineKeyboardButton("❌ Отмена", callback_data="del_media_cancel")]
+    ]
+    await update.message.reply_text(
+        f"🗑 Удалить медиа #{media_id}?\n"
+        f"Тип: {media['media_type']}\n"
+        f"Подпись: {(media.get('caption') or '(без подписи)')[:50]}",
+        reply_markup=InlineKeyboardMarkup(buttons)
     )
-    success_text = (
-        f"✅ Медиа #{media_id} поставлено в очередь на публикацию сейчас.\n"
-        f"🆔 Пост #{post_id}\n"
-        "⏱ Publisher заберёт его при ближайшей проверке."
-    )
-    try:
-        await query.edit_message_caption(success_text)
-    except Exception:
-        await query.edit_message_text(success_text)
-
 
 async def button_handler_delete_media(update: Update, context: CallbackContext):
     """Обработка подтверждения удаления медиа."""
@@ -1157,10 +1081,7 @@ def main():
     
     # Обработчик диалога планировщика ежедневных публикаций
     conv_handler_schedule = ConversationHandler(
-        entry_points=[
-            CommandHandler("schedule_daily", cmd_schedule_daily),
-            MessageHandler(filters.Regex(r"^🗓 Планировать публикацию$"), cmd_schedule_daily),
-        ],
+        entry_points=[MessageHandler(filters.Text(["🗓 Планировать публикацию"]), cmd_schedule_daily)],
         states={
             SCHEDULE_DAILY_HOUR: [CallbackQueryHandler(schedule_daily_get_hour, pattern=r"^schedule_hour_")],
             SCHEDULE_DAILY_MINUTE: [CallbackQueryHandler(schedule_daily_get_minute, pattern=r"^schedule_min_")],
@@ -1193,33 +1114,10 @@ def main():
     application.add_handler(CommandHandler("stats", cmd_stats))
     application.add_handler(CommandHandler("media_pool", cmd_media_pool))
     application.add_handler(CommandHandler("delete_media", cmd_delete_media))
-    application.add_handler(CommandHandler("schedule_daily", cmd_schedule_daily))
-    application.add_handler(CommandHandler("schedule_time", cmd_schedule_time))
     
     # Обработчики callback-кнопок
-    application.add_handler(CallbackQueryHandler(button_handler_publish_media_now, pattern=r"^pub_media_"), group=0)
-    application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"), group=0)
-    application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"), group=0)
-
-    # Универсальный fallback: ConversationHandler может перехватить callback
-    # в состоянии устаревшего диалога. Эти кнопки должны работать всегда.
-    async def callback_fallback(update: Update, context: CallbackContext):
-        query = update.callback_query
-        data = query.data or ""
-        logger.info("callback_fallback received: %s", data)
-        if data.startswith("del_media_"):
-            return await button_handler_delete_media(update, context)
-        if data.startswith("del_daily_"):
-            return await button_handler_delete_daily(update, context)
-        if data.startswith("pub_media_"):
-            return await button_handler_publish_media_now(update, context)
-        if data.startswith("schedule_hour_"):
-            return await schedule_daily_get_hour(update, context)
-        if data.startswith("schedule_min_"):
-            return await schedule_daily_get_minute(update, context)
-        await query.answer("⚠️ Кнопка устарела. Откройте меню заново.", show_alert=True)
-
-    application.add_handler(CallbackQueryHandler(callback_fallback), group=1)
+    application.add_handler(CallbackQueryHandler(button_handler_delete_media, pattern=r"^del_media_"))
+    application.add_handler(CallbackQueryHandler(button_handler_delete_daily, pattern=r"^del_daily_"))
     
     # Диалоги
     conv_handler_add_media = ConversationHandler(

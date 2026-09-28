@@ -6,7 +6,6 @@ stories_db.py — работа с базой данных для Telegram Storie
 import sqlite3
 import json
 import hashlib
-import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import List, Dict, Optional
@@ -187,37 +186,15 @@ def deactivate_post(post_id: int) -> bool:
         return False
 
 def delete_media(media_id: int) -> bool:
-    """Удалить медиа из пула вместе с физическим файлом.
-
-    Если медиа используется активным постом, сначала деактивируем такие посты,
-    иначе внешний ключ/логика publisher оставляет битое расписание.
-    """
+    """Удалить медиа из пула. Возвращает True если успешно."""
     try:
         with sqlite3.connect(DB_NAME) as conn:
-            # The legacy schema uses media_id=-1 for random-pool posts, so
-            # foreign_keys must remain off for this compatibility migration.
-            cur = conn.execute("SELECT file_path FROM media WHERE id=?", (media_id,))
-            row = cur.fetchone()
-            if not row:
-                return False
-            file_path = row[0]
-            # Активные посты с этим медиа больше нельзя публиковать.
-            conn.execute("UPDATE scheduled_posts SET is_active=0 WHERE media_id=? AND is_active=1", (media_id,))
-            # Старые/неактивные записи сохраняем для истории, но отвязываем от media,
-            # иначе SQLite foreign key не позволит удалить запись из media.
-            conn.execute("UPDATE scheduled_posts SET media_id=-1 WHERE media_id=?", (media_id,))
+            # Удаляем связанные записи из used_media_today
             conn.execute("DELETE FROM used_media_today WHERE media_id=?", (media_id,))
+            # Удаляем медиа
             cur = conn.execute("DELETE FROM media WHERE id=?", (media_id,))
             conn.commit()
-            deleted = cur.rowcount > 0
-        if deleted and file_path:
-            try:
-                os.remove(file_path)
-            except FileNotFoundError:
-                pass
-            except OSError as e:
-                print(f"Предупреждение: медиа удалено из БД, но файл не удалён: {e}")
-        return deleted
+            return cur.rowcount > 0
     except Exception as e:
         print(f"Ошибка удаления медиа: {e}")
         return False

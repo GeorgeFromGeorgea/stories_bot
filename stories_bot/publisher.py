@@ -16,9 +16,6 @@ from pathlib import Path
 from telethon import TelegramClient
 from telethon.tl.functions.stories import SendStoryRequest
 from telethon.tl.types import InputMediaUploadedPhoto, InputMediaUploadedDocument, InputPeerSelf, InputPrivacyValueAllowAll
-from telethon.tl.types import MessageEntityTextUrl
-import re
-from telethon.extensions import html as html_ext
 
 from . import stories_db
 
@@ -160,50 +157,17 @@ async def publish_story(post: dict) -> bool:
     media_type = media_info['media_type']
     media_id = media_info['id']
 
-    # Если у поста нет подписи — берём подпись из выбранного медиа (там может быть ссылка)
-    if not caption:
-        media_caption = media_info.get('caption') or ''
-        if media_caption:
-            caption = media_caption
-            # Пересчитываем caption_hash с учётом подписи медиа
-            caption_hash = stories_db.get_caption_hash(caption)
-            logger.info(f"📝 Используем подпись из медиа: {caption[:80]}")
-
     logger.info(f"📸 Публикация истории #{post_id} (media_id={media_id}, {media_type})...")
     try:
         peer = InputPeerSelf()
         privacy = [InputPrivacyValueAllowAll()]
-
-        # Парсим HTML в caption чтобы ссылки (<a href="...">) рендерились как кликабельные
-        caption_clean = caption
-        entities = []
-        if caption and ('<a ' in caption.lower() or '<b>' in caption.lower() or '<i>' in caption.lower()):
-            try:
-                parsed_text, parsed_entities = html_ext.parse(caption)
-                caption_clean = parsed_text
-                entities = parsed_entities
-                if entities:
-                    logger.info(f"🔗 Найдено {len(entities)} HTML-сущностей в caption (ссылки и т.д.)")
-            except Exception as parse_err:
-                logger.warning(f"⚠️ Не удалось распарсить HTML в caption: {parse_err}")
-
-        # Если нет HTML-entities, ищем голые URL в caption и создаём кликабельные entities
-        if not entities and caption:
-            url_pattern = re.compile(r'https?://[^\s<>\"\'\)]+')
-            for match in url_pattern.finditer(caption):
-                url = match.group()
-                offset = match.start()
-                length = len(url)
-                entities.append(MessageEntityTextUrl(url=url, offset=offset, length=length))
-                logger.info(f"🔗 Найден голый URL в caption: {url} (offset={offset}, len={length})")
 
         if media_type == "photo":
             media = await client.upload_file(file_path)
             await client(SendStoryRequest(
                 peer=peer,
                 media=InputMediaUploadedPhoto(file=media),
-                caption=caption_clean,
-                entities=entities or None,
+                caption=caption,
                 privacy_rules=privacy
             ))
         elif media_type == "video":
@@ -211,8 +175,7 @@ async def publish_story(post: dict) -> bool:
             await client(SendStoryRequest(
                 peer=peer,
                 media=InputMediaUploadedDocument(file=media, mime_type='video/mp4', attributes=[]),
-                caption=caption_clean,
-                entities=entities or None,
+                caption=caption,
                 privacy_rules=privacy
             ))
         else:
