@@ -772,7 +772,10 @@ async def handle_menu_buttons(update: Update, context: CallbackContext):
     return None
 
 async def cmd_schedule_daily(update: Update, context: CallbackContext):
-    """Кнопка «🗓 Планировать публикацию» — планировка только по времени без медиа и подписи."""
+    """Кнопка/команда планирования ежедневной публикации."""
+    user_id = update.effective_user.id if update.effective_user else None
+    if user_id in user_data:
+        del user_data[user_id]
     await update.message.reply_text(
         "⏰ Выберите час для ежедневной публикации:",
         reply_markup=build_hour_picker("schedule")
@@ -797,8 +800,14 @@ async def schedule_daily_get_minute(update: Update, context: CallbackContext):
     await query.answer()
     data = query.data.replace("schedule_min_", "")
     parts = data.split("_")
-    hour, minute = parts[0], parts[1]
-    time_str = f"{hour}:{minute}"
+    if len(parts) != 2 or not all(part.isdigit() for part in parts):
+        await query.edit_message_text("❌ Некорректное время. Попробуйте планирование заново.")
+        return ConversationHandler.END
+    hour, minute = parts
+    if not (0 <= int(hour) <= 23 and int(minute) in {0, 15, 30, 45}):
+        await query.edit_message_text("❌ Некорректное время. Попробуйте планирование заново.")
+        return ConversationHandler.END
+    time_str = f"{int(hour):02d}:{int(minute):02d}"
     
     post_id = stories_db.add_post(post_type="daily", post_time=time_str, media_id=-1, caption='')
     
@@ -867,6 +876,10 @@ async def handle_add_media(update: Update, context: CallbackContext):
         logger.info(f"handle_add_media: media_id={media_id}, will stay in ADD_MEDIA_WAIT for more files")
     except Exception as e:
         logger.error(f"handle_add_media: ошибка сохранения в БД: {e}")
+        try:
+            Path(file_path).unlink(missing_ok=True)
+        except Exception:
+            pass
         await update.message.reply_text(f"❌ Ошибка сохранения: {e}")
         return ADD_MEDIA_WAIT
 
@@ -1129,7 +1142,10 @@ def main():
     
     # Обработчик диалога планировщика ежедневных публикаций
     conv_handler_schedule = ConversationHandler(
-        entry_points=[MessageHandler(filters.Text(["🗓 Планировать публикацию"]), cmd_schedule_daily)],
+        entry_points=[
+            CommandHandler("schedule_daily", cmd_schedule_daily),
+            MessageHandler(filters.Regex(r"^🗓 Планировать публикацию$"), cmd_schedule_daily),
+        ],
         states={
             SCHEDULE_DAILY_HOUR: [CallbackQueryHandler(schedule_daily_get_hour, pattern=r"^schedule_hour_")],
             SCHEDULE_DAILY_MINUTE: [CallbackQueryHandler(schedule_daily_get_minute, pattern=r"^schedule_min_")],
